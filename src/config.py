@@ -21,6 +21,10 @@ import shutil
 # NUM_PRINTERS : number of 3d printers
 # NUM_POST_PROCESSORS : number of post processors
 
+#### Machines #####################################################################
+#
+
+
 
 # Assembly Process 1
 
@@ -29,19 +33,19 @@ I = {0: {"ID": 0, "TYPE": "Product",      "NAME": "PRODUCT",
          "INIT_LEVEL": 0,
          "DEMAND_QUANTITY": 0,
          "DUE_DATE": 28,},
-     1: {"ID": 1, "TYPE": "Material", "NAME": "MATERIAL 1",
-         "INIT_LEVEL": 500,},
-     2: {"ID": 2, "TYPE": "WIP", "NAME": "WIP",
+     1: {"ID": 1, "TYPE": "WIP", "NAME": "WIP",
          "INIT_LEVEL": 0}}
+
+#1: {"ID": 1, "TYPE": "Material", "NAME": "MATERIAL 1", "INIT_LEVEL": 500,}
 
 
 P = {0: {"ID": 0, "TYPE": "Build",      "NAME": "Build",
          "PRODUCTION_RATE": 600, "NUM_PRINTERS" : 2,
-         "INPUT_TYPE_LIST": [I[1]], "QNTY_FOR_INPUT_ITEM": [1], "OUTPUT": I[2], 
+         "OUTPUT": I[1], 
          },
      1: {"ID": 1, "TYPE": "Post-process", "NAME": "Post-process",
          "PRODUCTION_RATE": 48, "NUM_POST_PROCESSORS" : 4,
-         "INPUT_TYPE_LIST": [I[2]], "QNTY_FOR_INPUT_ITEM": [1], "OUTPUT": I[0]
+         "INPUT_TYPE_LIST": [I[1]], "QNTY_FOR_INPUT_ITEM": [1], "OUTPUT": I[0]
          }}
 
 
@@ -66,21 +70,6 @@ for id in I.keys():
 DEMAND_SCENARIO = {"Dist_Type": "UNIFORM",
                    "min": 500,
                    "max": 500}
-
-"""
-LEADTIME_SCENARIO = {"Dist_Type": "UNIFORM",
-                     "min": 2,
-                     "max": 2}
-# Example of Gaussian case
-
-DEMAND_SCENARIO = {"Dist_Type": "GAUSSIAN",
-                    "mean": 11.5, 
-                    "std": 2}
- 
-LEADTIME_SCENARIO = {"Dist_Type": "GAUSSIAN",
-                     "mean": 3,
-                     "std": 1}
-"""
 
 
 def DEFINE_FOLDER(folder_name):
@@ -116,25 +105,6 @@ def DEMAND_QTY_FUNC(scenario):
             return INVEN_LEVEL_MAX
         else:
             return demand
-
-"""
-def SUP_LEAD_TIME_FUNC(lead_time_dict):
-    if lead_time_dict["Dist_Type"] == "UNIFORM":
-        # Lead time의 최대 값은 Action Space의 최대 값과 곱하였을 때 INVEN_LEVEL_MAX의 2배를 넘지 못하게 설정 해야 함 (INTRANSIT이 OVER되는 현상을 방지 하기 위해서)
-        # SUP_LEAD_TIME must be an integer
-        return random.randint(lead_time_dict['min'], lead_time_dict['max'])
-    elif lead_time_dict["Dist_Type"] == "GAUSSIAN":
-        mean = lead_time_dict['mean']
-        std = lead_time_dict['std']
-        # Lead time의 최대 값은 Action Space의 최대 값과 곱하였을 때 INVEN_LEVEL_MAX의 2배를 넘지 못하게 설정 해야 함 (INTRANSIT이 OVER되는 현상을 방지 하기 위해서)
-        lead_time = np.random.normal(mean, std)
-        if lead_time < 0:
-            lead_time = 0
-        elif lead_time > 7:
-            lead_time = 7
-        # SUP_LEAD_TIME must be an integer
-        return int(round(lead_time))
-"""
 
 
 
