@@ -18,7 +18,7 @@ class Inventory:
         #재고 용량 제한. 최대값은 INVEN_LEVEL_MAX로 설정
         # Daily inventory report template:
         '''
-        Day / Inventory_Name / Inventory_Type / Inventory at the start of the day / Income_Inventory(Onhand) / Outgoing_inventory(Onhand) / Intransit_Inventory / Inventory at the end of the day
+        Day / Inventory_Name / Inventory_Type / Inventory at the start of the day / Income_Inventory(Onhand) / Outgoing_inventory(Onhand) / Inventory at the end of the day
         '''
         self.daily_inven_report = [f"Day {self.env.now // 24+1}", I[self.item_id]['NAME'],
                                    I[self.item_id]['TYPE'], self.on_hand_inventory, 0, 0, 0, 0]
@@ -75,15 +75,13 @@ class Inventory:
 
 
 class Production:
-    def __init__(self, env, name, process_id, production_rate, output, input_inventories, qnty_for_input_item, output_inventory, ):
+    def __init__(self, env, name, process_id, production_rate, output, output_inventory):
         # Initialize production process
         self.env = env
         self.name = name
         self.process_id = process_id
         self.production_rate = production_rate
         self.output = output
-        self.input_inventories = input_inventories
-        self.qnty_for_input_item = qnty_for_input_item
         self.output_inventory = output_inventory
         self.processing_time = 24 / self.production_rate
         self.print_stop = True
@@ -102,42 +100,14 @@ class Production:
             with self.machine.request() as request :
                 yield request
 
-                total_input_needed = [input_qnty * self.batch_size for input_qnty in self.qnty_for_input_item]
-                shortage_check = any(
-                    inven.on_hand_inventory < needed
-                    for inven, needed in zip(self.input_inventories, total_input_needed)
-                )
 
                 # 🔹 50개 생산 후 output inventory가 넘치지 않는지 확인
                 inven_upper_limit_check = (
                     self.output_inventory.on_hand_inventory + self.batch_size > self.output_inventory.capacity_limit )
 
-                """
-                shortage_check = False
-                for inven, input_qnty in zip(self.input_inventories, self.qnty_for_input_item):
-                    if inven.on_hand_inventory < input_qnty:
-                        shortage_check = True
-                        # early stop
-                        break
-
-                # Check if the output inventory is full
-                inven_upper_limit_check = False
-                if self.output_inventory.on_hand_inventory >= self.output_inventory.capacity_limit:
-                    inven_upper_limit_check = True
-                """
-
-                if shortage_check:
-                    if self.print_stop:
-                        daily_events.append(
-                            "===============Process Phase===============")
-
-                        daily_events.append(
-                            f"{present_daytime(self.env.now)}: Stop {self.name} due to a shortage of input materials")
-                    self.print_stop = False
-
-                    yield self.env.timeout(1)  # Check shortage every hour
-
-                elif inven_upper_limit_check:
+                
+             
+                if inven_upper_limit_check:
                     if self.print_limit:
                         daily_events.append(
                             "===============Process Phase===============")
@@ -147,50 +117,20 @@ class Production:
                     yield self.env.timeout(1)  # Check upper limit every hour
 
                 else:
-                    start_time = self.env.now
+                    #start_time = self.env.now
                     daily_events.append("===============Process Phase===============")
                     daily_events.append(f"{present_daytime(self.env.now)}: Process {self.process_id} begins producing {self.batch_size} units")
 
-                    # 1️⃣ **모든 input 자원 한 번에 차감**
-                    for inven, needed in zip(self.input_inventories, total_input_needed):
-                        inven.update_inven_level(-needed, "ON_HAND", daily_events)
+                    
 
-                    # 2️⃣ **생산 시간 진행 (출력 없음)**
+                    # **생산 시간 진행 (출력 없음)**
                     yield self.env.timeout((self.processing_time / P[self.process_id]["NUM_PRINTERS"] - TIME_CORRECTION) * self.batch_size)
 
-                    # 3️⃣ **50개 완성 후 한 번에 output 추가**
+                    # **50개 완성 후 한 번에 output 추가**
                     self.output_inventory.update_inven_level(self.batch_size, "ON_HAND", daily_events)
 
                     
-                    """
-                    for _ in range(self.batch_size):
-                        # Consume input materials
-                        for inven, input_qnty in zip(self.input_inventories, self.qnty_for_input_item):
-                            inven.update_inven_level(-input_qnty, "ON_HAND", daily_events)
-
-                        # Time correction
-                        yield self.env.timeout(self.processing_time / 2 - TIME_CORRECTION)  # P[self.process_id]["NUM_PRINTERS"]
-                        
-
-                        # Update the inventory level for the output item
-                        self.output_inventory.update_inven_level(1, "ON_HAND", daily_events)
-                    """
-
-                    """
-                    # Consume input materials or WIPs
-                    for inven, input_qnty in zip(self.input_inventories, self.qnty_for_input_item):
-                        inven.update_inven_level(-input_qnty,
-                                             "ON_HAND", daily_events)
-                    # Process items (consume time)
                     
-                    # Time correction
-                    yield self.env.timeout(self.processing_time/2-TIME_CORRECTION) #P[self.process_id]["NUM_PRINTERS"]
-                    daily_events.append(
-                    "===============Result Phase================")
-                    
-                    # Update the inventory level for the output item
-                    self.output_inventory.update_inven_level(1, "ON_HAND", daily_events)
-                    """
                     daily_events.append("===============Result Phase================")
                     daily_events.append(f"{present_daytime(self.env.now)}: {self.output['NAME']} has been produced                         : {self.batch_size} units")
 
@@ -198,28 +138,14 @@ class Production:
                     self.print_stop = True
                     yield self.env.timeout(TIME_CORRECTION)  # Time correction
 
-                    end_time = self.env.now
+                    #end_time = self.env.now
 
-                    gantt_data.append(("Production", start_time, end_time - start_time))
+                    #gantt_data.append(("Production", start_time, end_time - start_time))
 
 
 
 class PostProcess:
     
-    '''
-    def __init__(self, env, name, process_id, input_inventory, qnty_for_input_item, output, production_rate, output_inventory,):
-        self.env = env
-        self.name = name
-        self.process_id = process_id
-        self.production_rate = production_rate
-        self.input_inventory = input_inventory  # 생산된 제품을 받는 곳
-        self.output_inventory = output_inventory  # 최종 완성품을 저장할 곳
-        self.output = output
-        self.qnty_for_input_item = qnty_for_input_item
-        self.processing_time = 24 / production_rate  
-        self.print_stop = True
-        self.print_limit = True
-    '''
     def __init__(self, env, name, process_id, production_rate, output, input_inventories, qnty_for_input_item, output_inventory, ):
         # Initialize production process
         self.env = env
@@ -317,7 +243,7 @@ class PostProcess:
                 self.batch_counter += 1
                 if self.batch_counter % self.batch_size == 0:
                         daily_events.append("===============PostProcessResult Phase================")
-                        daily_events.append(f"{present_daytime(self.env.now)}: {self.output['NAME']} has been produced:      {self.batch_size} units")
+                        daily_events.append(f"{present_daytime(self.env.now)}: {self.output['NAME']} has been produced                     : {self.batch_size} units")
 
 
                 #위에서 정의한 processing_time에서 계산 오차 보정을 위해 time_correction빼줌
@@ -336,59 +262,6 @@ class PostProcess:
                 gantt_data.append(("PostProcess", start_time, end_time - start_time))
                 #남은 시간 보정을 위해 추가 대기 (시뮬레이션 시간의 정확성을 유지위함)
 
-
-
-        """
-        후처리(Post-Processing) 단계 시뮬레이션.
-        
-        while True:
-            # 기계 사용 요청
-            with self.machine.request() as request:
-                yield request  # 기계 사용 가능할 때까지 대기
-
-                # 입력 재고가 있는지 확인
-                if self.input_inventories.on_hand_inventory < 1:
-                    if self.print_stop:
-                        daily_events.append("===============Post-Processing Phase===============")
-                        daily_events.append(
-                            f"{present_daytime(self.env.now)}: Stop {self.name} due to lack of input items"
-                        )
-                    self.print_stop = False
-                    yield self.env.timeout(1)  # 매 1시간마다 재고 확인
-
-                elif self.output_inventory.on_hand_inventory >= self.output_inventory.capacity_limit:
-                    if self.print_limit:
-                        daily_events.append("===============Post-Processing Phase===============")
-                        daily_events.append(
-                            f"{present_daytime(self.env.now)}: Stop {self.name} due to full output inventory"
-                        )
-                    self.print_limit = False
-                    yield self.env.timeout(1)  # 매 1시간마다 재고 확인
-
-                else:
-                    daily_events.append("===============Post-Processing Phase===============")
-                    daily_events.append(
-                        f"{present_daytime(self.env.now)}: {self.process_id} starts post-processing"
-                    )
-
-                    #  Input 재고 감소
-                    self.input_inventories.update_inven_level(-1, "ON_HAND", daily_events)
-
-                    #  후처리 작업 (30분 소요)
-                    yield self.env.timeout(self.processing_time)
-
-                    daily_events.append("===============Post-Processing Result===============")
-
-                    #  완성품 재고 증가
-                    self.output_inventory.update_inven_level(1, "ON_HAND", daily_events)
-
-                    daily_events.append(
-                        f"{present_daytime(self.env.now)}: Final product is ready : 1 unit"
-                    )
-
-                    self.print_stop = True
-                    self.print_limit = True
-        """
 
 
 class Sales:
@@ -487,6 +360,8 @@ def create_env(I, P, daily_events):
     for i in I.keys():
         inventoryList.append(Inventory(simpy_env, i ))
 
+
+
     # Create stakeholders (Customer, Suppliers) 고객 객체 생성
     customer = Customer(simpy_env, "CUSTOMER", I[0]["ID"])
 
@@ -499,19 +374,9 @@ def create_env(I, P, daily_events):
     productionList = []
     productionList.append(Production(simpy_env, "PROCESS_" + str(0), P[0]["ID"],
                                    P[0]["PRODUCTION_RATE"], P[0]["OUTPUT"], 
-                                   [inventoryList[j["ID"]] for j in P[0]["INPUT_TYPE_LIST"]], 
-                                   P[0]["QNTY_FOR_INPUT_ITEM"], 
                                    inventoryList[P[0]["OUTPUT"]["ID"]]))
     
-    """
-    for i in P.keys():
-        output_inventory = inventoryList[P[i]["OUTPUT"]["ID"]]
-        input_inventories = []
-        for j in P[i]["INPUT_TYPE_LIST"]:
-            input_inventories.append(inventoryList[j["ID"]])
-        productionList.append(Production(simpy_env, "PROCESS_" + str(i), P[i]["ID"],
-                                         P[i]["PRODUCTION_RATE"], P[i]["OUTPUT"], input_inventories, P[i]["QNTY_FOR_INPUT_ITEM"], output_inventory, ))
-    """
+   
 
     postprocessList = []
     postprocessList.append(PostProcess(simpy_env, "PROCESS_" + str(1), P[1]["ID"],
@@ -520,15 +385,7 @@ def create_env(I, P, daily_events):
                                    P[1]["QNTY_FOR_INPUT_ITEM"], 
                                    inventoryList[P[1]["OUTPUT"]["ID"]]))
 
-    """
-    for i in P.keys():
-        output_inventory = inventoryList[P[i]["OUTPUT"]["ID"]]
-        input_inventories = []
-        for j in P[i]["INPUT_TYPE_LIST"]:
-            input_inventories.append(inventoryList[j["ID"]])
-        postprocessList.append(PostProcess(simpy_env, "PROCESS_" + str(i), P[i]["ID"],
-                                         P[i]["PRODUCTION_RATE"], P[i]["OUTPUT"], input_inventories, P[i]["QNTY_FOR_INPUT_ITEM"], output_inventory, ))
-    """
+    
     return simpy_env, inventoryList, productionList, postprocessList, sales, customer, daily_events
     
 
@@ -582,8 +439,9 @@ def update_daily_report(inventoryList):
         #[날짜, 재고이름, 재고 유형, 보유 재고, 운송 중 재고, 초기값0]
 
 
-
 def present_daytime(env_now):
-    fill_length = len(str(SIM_TIME * 24))
-    return f"{env_now:.2f}".zfill(fill_length + 3)
-    #return str(int(env_now)).zfill(fill_length+3)
+    days = int(env_now // 24)
+    hours = int(env_now % 24)
+    minutes = int((env_now % 1) * 60)  # 소수점을 분으로 변환
+    
+    return f"[{days:02}:{hours:02}:{minutes:02}]"
