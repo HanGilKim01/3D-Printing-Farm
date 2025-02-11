@@ -22,7 +22,7 @@ import shutil
 # NUM_POST_PROCESSORS : number of post processors
 
 #### Machines #####################################################################
-#
+#수정사항 변경 되었는지 확인용
 
 
 
