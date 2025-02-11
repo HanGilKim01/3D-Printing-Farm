@@ -48,6 +48,8 @@ P = {0: {"ID": 0, "TYPE": "Build",      "NAME": "Build",
          "INPUT_TYPE_LIST": [I[1]], "QNTY_FOR_INPUT_ITEM": [1], "OUTPUT": I[0]
          }}
 
+M = {0: {"ID": 0, "TYPE": "Printer", "NAME": "Printer-1","PRODUCTION_RATE": 600}, 1:{"ID": 0, "TYPE": "Printer", "NAME": "Printer-2","PRODUCTION_RATE": 600}}
+
 
 # State space
 # if this is not 0, the length of state space of demand quantity is not identical to INVEN_LEVEL_MAX
@@ -67,7 +69,7 @@ for id in I.keys():
         MAT_COUNT += 1
 
 # Scenario about Demand and leadtime
-DEMAND_SCENARIO = {"Dist_Type": "UNIFORM",
+ORDER_SCENARIO = {"Dist_Type": "UNIFORM",
                    "min": 500,
                    "max": 500}
 

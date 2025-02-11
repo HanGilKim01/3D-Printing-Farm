@@ -8,7 +8,7 @@ viz_sq = deque()
 
 
 # Define the scenario
-scenario = {"DEMAND": DEMAND_SCENARIO, }
+scenario = {"DEMAND": ORDER_SCENARIO, }
 
 # Create environment
 simpy_env, inventoryList, productionList, postprocessList, sales, customer, daily_events = env.create_env(

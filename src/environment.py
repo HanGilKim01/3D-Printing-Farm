@@ -124,7 +124,7 @@ class Production:
                     
 
                     # **생산 시간 진행 (출력 없음)**
-                    yield self.env.timeout((self.processing_time / P[self.process_id]["NUM_PRINTERS"] - TIME_CORRECTION) * self.batch_size)
+                    yield self.env.timeout((self.processing_time - TIME_CORRECTION) * self.batch_size)
 
                     # **50개 완성 후 한 번에 output 추가**
                     self.output_inventory.update_inven_level(self.batch_size, "ON_HAND", daily_events)
