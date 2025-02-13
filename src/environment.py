@@ -92,10 +92,12 @@ class Production:
         self.batch_size = 50 #50개 단위 출력
         self.num_printers = P[self.process_id]["NUM_PRINTERS"]
         self.total_produced = 0
-        self.order_quantity = 500
+        self.order_quantity = I[0]['DEMAND_QUANTITY']*50
 
 
         self.machines = [simpy.Resource(env, capacity=1) for _ in range(self.num_printers)]
+
+    
 
     def process_for_machine(self, machine_id, daily_events):
         """
@@ -212,8 +214,8 @@ class PostProcess:
         self.num_printers = P[self.process_id]["NUM_POST_PROCESSORS"]
         self.processing_time = (24 / self.production_rate) / self.num_printers
         self.total_produced = 0
-        self.order_quantity = 500
-        
+        self.order_quantity = I[0]['DEMAND_QUANTITY']*50
+
         # 후처리 기계 4대 운영
         self.machines = [simpy.Resource(env, capacity=1) for _ in range(self.num_printers)]
         #self.machine = simpy.Resource(env, capacity=P[self.process_id]["NUM_POST_PROCESSORS"] ) #P[self.process_id]["NUM_POST_PROCESSORS"]  

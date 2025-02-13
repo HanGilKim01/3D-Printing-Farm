@@ -31,7 +31,7 @@ import shutil
 I = {0: {"ID": 0, "TYPE": "Product",      "NAME": "aligner",
          "CUST_ORDER_CYCLE": 28,
          "INIT_LEVEL": 0,
-         "DEMAND_QUANTITY": 0,
+         "DEMAND_QUANTITY": 10,
          "DUE_DATE": 28,},
      1: {"ID": 1, "TYPE": "WIP", "NAME": "WIP",
          "INIT_LEVEL": 0}}
@@ -60,7 +60,7 @@ INVEN_LEVEL_MIN = 0
 INVEN_LEVEL_MAX = 600  # Capacity limit of the inventory [units]
 
 # Simulation
-SIM_TIME = 4  # [days] per episode
+SIM_TIME = 3  # [days] per episode
 
 # Count for intransit inventory
 # 재고 항목 I 에서 Material 유형의 항목 수를 계산 하는 부분.
