@@ -1,4 +1,5 @@
 import simpy
+import functools
 import numpy as np
 from config import *  # Assuming this imports necessary configurations
 from log import *  # Assuming this imports necessary logging functionalities
@@ -32,7 +33,9 @@ class Inventory:
         """
         #현재 발생 고객 주문 이벤트를 문자열로 생성하여 daily_events리스트에 추가
         daily_events.append(
-            f"{present_daytime(self.env.now)}: Customer order of {I[0]['NAME']}                                 : {I[0]['DEMAND_QUANTITY']} units ")
+            f"{present_daytime(self.env.now)}: Customer order of {I[0]['NAME']}                                 : {I[0]['DEMAND_QUANTITY']} order ")
+        daily_events.append(
+            f"{present_daytime(self.env.now)}: Total amount of {I[0]['NAME']} to be produced                    : {I[0]['DEMAND_QUANTITY']*50} units ")
 
     #재고 수준 업데이트. 재고 변경량 적용, 이벤트 기록.
     def update_inven_level(self, quantity_of_change, inven_type, daily_events):
@@ -80,20 +83,68 @@ class Production:
         self.env = env
         self.name = name
         self.process_id = process_id
-        self.production_rate = production_rate
+        self.production_rate = production_rate[0]
         self.output = output
         self.output_inventory = output_inventory
         self.processing_time = 24 / self.production_rate
         self.print_stop = True
         self.print_limit = True
         self.batch_size = 50 #50개 단위 출력
+        self.num_printers = P[self.process_id]["NUM_PRINTERS"]
+        self.total_produced = 0
+        self.order_quantity = 500
 
-        self.machine = simpy.Resource(env, capacity = P[self.process_id]["NUM_PRINTERS"]) #2
 
+        self.machines = [simpy.Resource(env, capacity=1) for _ in range(self.num_printers)]
+
+    def process_for_machine(self, machine_id, daily_events):
+        """
+        각 프린터가 독립적으로 50개씩 생산하는 함수
+        """
+        printer_name = M1[machine_id]["NAME"]
+        while self.total_produced < self.order_quantity:
+            with self.machines[machine_id].request() as request:
+                yield request
+
+                inven_upper_limit_check = (
+                    self.output_inventory.on_hand_inventory + self.batch_size > self.output_inventory.capacity_limit)
+
+                if inven_upper_limit_check:
+                    daily_events.append("===============Stop Process Phase===============")
+                    daily_events.append(f"{present_daytime(self.env.now)}: Stop {self.name} ({printer_name}) due to full inventory.")
+                    break
+                    #yield self.env.timeout(1)  # Check upper limit every hour
+
+
+                else:
+                    daily_events.append("===============Build Phase===============")
+                    daily_events.append(f"{present_daytime(self.env.now)}: {self.name} ({printer_name}) begins producing {self.batch_size} units.")
+                    yield self.env.timeout((self.processing_time - TIME_CORRECTION) * self.batch_size)
+
+                    self.output_inventory.update_inven_level(self.batch_size, "ON_HAND", daily_events)
+                    self.total_produced += self.batch_size 
+
+
+                    daily_events.append("===============Build Result Phase===============")
+                    daily_events.append(f"{present_daytime(self.env.now)}: {self.output['NAME']} has been produced: {self.batch_size} units by Machine {machine_id}")
+
+                    if self.total_produced >= self.order_quantity:  # 🔹 주문량만큼 생산되면 종료
+                        daily_events.append(f"{present_daytime(self.env.now)}: Order completed! {self.order_quantity} units produced. Stopping production.")
+                        break
+
+                    yield self.env.timeout(TIME_CORRECTION)  # Time correction
+
+    def start_production(self, daily_events):
+        """
+        각 프린터에 대해 생산 프로세스를 개별적으로 시작
+        """
+        for machine_id in range(self.num_printers):
+            self.env.process(functools.partial(self.process_for_machine, machine_id, daily_events))
+
+    """
     def process_items(self, daily_events):
-        """
-        Simulate the production process.
-        """
+        
+        
         while True:
             
             # Check if there's a shortage of input materials or WIPs
@@ -117,7 +168,7 @@ class Production:
                     yield self.env.timeout(1)  # Check upper limit every hour
 
                 else:
-                    #start_time = self.env.now
+                    
                     daily_events.append("===============Process Phase===============")
                     daily_events.append(f"{present_daytime(self.env.now)}: Process {self.process_id} begins producing {self.batch_size} units")
 
@@ -138,10 +189,8 @@ class Production:
                     self.print_stop = True
                     yield self.env.timeout(TIME_CORRECTION)  # Time correction
 
-                    #end_time = self.env.now
-
-                    #gantt_data.append(("Production", start_time, end_time - start_time))
-
+             """       
+    
 
 
 class PostProcess:
@@ -160,22 +209,90 @@ class PostProcess:
         self.print_stop = True
         self.print_limit = True
         self.batch_size = 50
-        self.batch_counter = 0
+        self.num_printers = P[self.process_id]["NUM_POST_PROCESSORS"]
+        self.processing_time = (24 / self.production_rate) / self.num_printers
+        self.total_produced = 0
+        self.order_quantity = 500
+        
         # 후처리 기계 4대 운영
-        self.machine = simpy.Resource(env, capacity=P[self.process_id]["NUM_POST_PROCESSORS"] ) #P[self.process_id]["NUM_POST_PROCESSORS"]  
+        self.machines = [simpy.Resource(env, capacity=1) for _ in range(self.num_printers)]
+        #self.machine = simpy.Resource(env, capacity=P[self.process_id]["NUM_POST_PROCESSORS"] ) #P[self.process_id]["NUM_POST_PROCESSORS"]  
 
-    def process_items(self, daily_events):
+#self.num_printers = P[self.process_id]["NUM_PRINTERS"]
+#self.machines = [simpy.Resource(env, capacity=1) for _ in range(self.num_printers)]
+    def process_for_machine(self, machine_id, daily_events):
+        """
+        각 기계가 독립적으로 생산을 수행하지만, 생산량을 함께 집계하여 50개 단위로 결과 출력
+        """
+        while True:
+            with self.machines[machine_id].request() as request:
+                yield request
+
+                # 입력 재고 확인 (필요한 재고가 없으면 대기)
+                shortage_check = any(inven.on_hand_inventory < input_qnty
+                                     for inven, input_qnty in zip(self.input_inventories, self.qnty_for_input_item))
+
+                if shortage_check:
+                    if self.print_stop:
+                        daily_events.append(f"{present_daytime(self.env.now)}: Stop {self.name} due to input shortage")
+                    self.print_stop = False
+                    yield self.env.timeout(1)  # 1시간 대기 후 재확인
+                    continue
+
+                # 출력 재고 확인 (최대 용량 초과 시 대기)
+                if self.output_inventory.on_hand_inventory >= self.output_inventory.capacity_limit:
+                    if self.print_limit:
+                        daily_events.append(f"{present_daytime(self.env.now)}: Stop {self.name} due to full inventory")
+                    self.print_limit = False
+                    yield self.env.timeout(1)  # 1시간 대기 후 재확인
+                    continue
+
+                # 생산 시작
+                
+                yield self.env.timeout(self.processing_time - TIME_CORRECTION)  # 병렬 생산 반영
+
+                # 입력 재고 감소
+                for inven, input_qnty in zip(self.input_inventories, self.qnty_for_input_item):
+                    inven.update_inven_level(-input_qnty, "ON_HAND", daily_events)
+
+                # 출력 재고 증가
+                self.output_inventory.update_inven_level(1, "ON_HAND", daily_events)
+
+                # 🔹 총 생산량 업데이트
+                self.total_produced += 1
+
+                # 🔹 50개 단위로 결과 출력
+                if self.total_produced >= self.batch_size:
+                    daily_events.append("===============PostProcessResult Phase================")
+                    daily_events.append(f"{present_daytime(self.env.now)}: {self.output['NAME']} has been produced: {self.total_produced} units (Accumulated)")
+                    self.total_produced = 0  # 생산량 초기화
+
+                if self.total_produced >= self.order_quantity:  # 🔹 주문량만큼 생산되면 종료
+                        daily_events.append(f"{present_daytime(self.env.now)}: Order completed! {self.order_quantity} units produced. Stopping production.")
+                        break
+
+                yield self.env.timeout(TIME_CORRECTION)  # 시간 보정
+
+    def start_production(self, daily_events):
+        """
+        각 기계를 독립적으로 실행
+        """
+        for machine_id in range(self.num_printers):
+            self.env.process(self.process_for_machine(machine_id, daily_events))
+
+"""
+    def process_for_machine(self, daily_events):
                
         while True:
             # Check if there's a shortage of input materials or WIPs
             shortage_check = False
-            #일단 기본값으로 재고 부족량을 false로 설정 > 현재는 재고 부적이 없다다
+            #일단 기본값으로 재고 부족량을 false로 설정 > 현재는 재고 부족이 없다
             for inven, input_qnty in zip(self.input_inventories, self.qnty_for_input_item):
                 #zip : 재고 객체와 필요 수량을 한쌍으로 묶음.
                 if inven.on_hand_inventory < input_qnty:
                     #현재보유량이 필요수량보다 적은지 확인
                     shortage_check = True
-                    #부족하다면, True로 하여, 나머지 재고를 확인하지않고 루프를 종료료
+                    #부족하다면, True로 하여, 나머지 재고를 확인하지않고 루프를 종료
                     # early stop
                     break
 
@@ -215,12 +332,12 @@ class PostProcess:
             #입력 재고가 충분하고, 출력 재고가 초과 되지 않은 경우 생산 작업을 수행하는 로직
             #입력재고를 소비하고 산출물 생성, 생산관련 이벤트 기록 / 생산 소요시간 비용 계산, 시간 보정 처리
             else:
-                start_time = self.env.now
-                """
+                
+                
                 daily_events.append("===============PostProcess Phase===============")
                 #생산 공정이 시작되었음을 이벤트 로그에 기록
                 daily_events.append(f"{present_daytime(self.env.now)}: Process {self.process_id} begins")
-                """
+                
 
                 #입력 재고(input_inventories)에서 필요한 수량(qntyforinputitem)만큼 감소(update_inven_level 호출)
                 # Consume input materials or WIPs
@@ -232,7 +349,7 @@ class PostProcess:
                 #생산 비용 계산, 기록
 
                 # Time correction 생산시간소요
-                yield self.env.timeout(self.processing_time/P[self.process_id]["NUM_POST_PROCESSORS"]-TIME_CORRECTION)
+                yield self.env.timeout(self.processing_time-TIME_CORRECTION)
 
                 # 🔹 1개 생산 완료 (출력 재고 증가)
                 self.output_inventory.update_inven_level(1, "ON_HAND", daily_events)
@@ -246,21 +363,10 @@ class PostProcess:
                         daily_events.append(f"{present_daytime(self.env.now)}: {self.output['NAME']} has been produced                     : {self.batch_size} units")
 
 
-                #위에서 정의한 processing_time에서 계산 오차 보정을 위해 time_correction빼줌
-                #daily_events.append("===============Result Phase================")
-                #결과 단계
-                #출력 재고 업데이트
-               
-                #시간 보정을 위해 생산 공정 시작 및 종료 시간 조정
-
-                #daily_events.append(f"{self.env.now+TIME_CORRECTION}: {self.output['NAME']} has been produced                         : 1 units")
-                #산출물 생산되었음을 이벤트로그에 기록
                 self.print_limit = True
                 self.print_stop = True
                 yield self.env.timeout(TIME_CORRECTION)  # Time correction
-                end_time = self.env.now
-                gantt_data.append(("PostProcess", start_time, end_time - start_time))
-                #남은 시간 보정을 위해 추가 대기 (시뮬레이션 시간의 정확성을 유지위함)
+"""                
 
 
 
@@ -372,8 +478,20 @@ def create_env(I, P, daily_events):
     #sales 객체 초기화(환경,id,납품 기한)
 
     productionList = []
+
+
+    """
+    for machine_id in M1:
+        productionList.append(Production(simpy_env,"PROCESS_" + str(0), 
+                P[0]["ID"],  # P에서 ID 가져오기
+                M1[machine_id]["PRODUCTION_RATE"],  # M에서 PRODUCTION_RATE 가져오기
+                P[0]["OUTPUT"], 
+                inventoryList[P[1]["OUTPUT"]["ID"]]))
+    
+    """
     productionList.append(Production(simpy_env, "PROCESS_" + str(0), P[0]["ID"],
-                                   P[0]["PRODUCTION_RATE"], P[0]["OUTPUT"], 
+                                   [M1[machine_id]["PRODUCTION_RATE"] for machine_id in M1],
+                                   P[0]["OUTPUT"], 
                                    inventoryList[P[0]["OUTPUT"]["ID"]]))
     
    
@@ -400,12 +518,16 @@ def simpy_event_processes(simpy_env, inventoryList, productionList, postprocessL
     #order_product 메서드 호출 > 특정 제품 주문(sales-판매객체,주문대상 재고 객체, 이벤트 로그 리스트, 시나리오)
     
     for production in productionList:
-        simpy_env.process(production.process_items(daily_events))
+        for machine_id in range(production.num_printers): 
+            simpy_env.process(production.process_for_machine(machine_id, daily_events)) 
+
+    #for production in productionList:
+        #simpy_env.process(production.process_for_machine(daily_events))
     #제조 공정 실행. 모든 제조 공정 객체(productionlist)에 대해 processitems메서드 실행
     #process_itmes 제조 공정 입력 재료 소비하고 산출물 생성
     
     for postprocess in postprocessList:
-        simpy_env.process(postprocess.process_items(daily_events))
+        simpy_env.process(postprocess.process_for_machine(machine_id, daily_events))
     
 
     simpy_env.process(record_inventory(simpy_env, inventoryList))

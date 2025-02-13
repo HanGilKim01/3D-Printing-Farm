@@ -28,7 +28,7 @@ import shutil
 
 # Assembly Process 1
 
-I = {0: {"ID": 0, "TYPE": "Product",      "NAME": "PRODUCT",
+I = {0: {"ID": 0, "TYPE": "Product",      "NAME": "aligner",
          "CUST_ORDER_CYCLE": 28,
          "INIT_LEVEL": 0,
          "DEMAND_QUANTITY": 0,
@@ -40,7 +40,7 @@ I = {0: {"ID": 0, "TYPE": "Product",      "NAME": "PRODUCT",
 
 
 P = {0: {"ID": 0, "TYPE": "Build",      "NAME": "Build",
-         "PRODUCTION_RATE": 600, "NUM_PRINTERS" : 2,
+         "NUM_PRINTERS" : 2,
          "OUTPUT": I[1], 
          },
      1: {"ID": 1, "TYPE": "Post-process", "NAME": "Post-process",
@@ -48,7 +48,10 @@ P = {0: {"ID": 0, "TYPE": "Build",      "NAME": "Build",
          "INPUT_TYPE_LIST": [I[1]], "QNTY_FOR_INPUT_ITEM": [1], "OUTPUT": I[0]
          }}
 
-M = {0: {"ID": 0, "TYPE": "Printer", "NAME": "Printer-1","PRODUCTION_RATE": 600}, 1:{"ID": 0, "TYPE": "Printer", "NAME": "Printer-2","PRODUCTION_RATE": 600}}
+M1 = {0: {"ID": 0, "TYPE": "Printer", "NAME": "Printer-1","PRODUCTION_RATE": 600},
+      1:{"ID": 1, "TYPE": "Printer", "NAME": "Printer-2","PRODUCTION_RATE": 600}}
+
+#M2 = {0: {"ID": 0, "TYPE": "Post-Processor", "NAME": "Post-1","PRODUCTION_RATE": 600}, 1:{"ID": 1, "TYPE": "Post-Processor", "NAME": "Post-2","PRODUCTION_RATE": 600}}
 
 
 # State space
@@ -57,7 +60,7 @@ INVEN_LEVEL_MIN = 0
 INVEN_LEVEL_MAX = 600  # Capacity limit of the inventory [units]
 
 # Simulation
-SIM_TIME = 3  # [days] per episode
+SIM_TIME = 4  # [days] per episode
 
 # Count for intransit inventory
 # 재고 항목 I 에서 Material 유형의 항목 수를 계산 하는 부분.
@@ -70,8 +73,8 @@ for id in I.keys():
 
 # Scenario about Demand and leadtime
 ORDER_SCENARIO = {"Dist_Type": "UNIFORM",
-                   "min": 500,
-                   "max": 500}
+                   "min": 10,
+                   "max": 10}
 
 
 def DEFINE_FOLDER(folder_name):
@@ -111,13 +114,10 @@ def DEMAND_QTY_FUNC(scenario):
 
 
 PRINT_GRAPH_RECORD = True
-# Ordering rules : Reorder point (S) and Order quantity (Q)
-# USE_SQPOLICY = True  : When using SQpolicy (DRL is NOT used)
-# USE_SQPOLICY = False  : When NOT using SQpolicy (DRL is used)
-USE_SQPOLICY = False
+
 
 # Print logs
 PRINT_SIM_EVENTS = True
 PRINT_SIM_REPORT = True
 
-TIME_CORRECTION = 0.0001
+TIME_CORRECTION = 0
