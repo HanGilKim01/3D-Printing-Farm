@@ -1,27 +1,24 @@
 from config import *
 from log import *
 import environment as env
-from collections import deque
+import visualization
 from visualization import *
-viz_sq = deque()
-
-
+from environment import *
 
 # Define the scenario
-scenario = {"DEMAND": ORDER_SCENARIO, }
+scenario = {"DEMAND": ORDER_SCENARIO}
 
 # Create environment
-simpy_env, inventoryList, productionList, postprocessList, sales, customer, daily_events = env.create_env(
-    I, P, LOG_DAILY_EVENTS)
-env.simpy_event_processes(simpy_env, inventoryList, 
-                          productionList, postprocessList, sales, customer, daily_events, I, scenario)
+simpy_env, inventoryList, BuildList, postprocessList, customer, daily_events = env.create_env(ITEM, MACHINE, LOG_DAILY_EVENTS)
+
+env.simpy_event_processes(simpy_env, inventoryList, BuildList, postprocessList,  customer, daily_events, ITEM, scenario)
 
 
 if PRINT_SIM_EVENTS:
     print(f"============= Initial Inventory Status =============")
     for inventory in inventoryList:
         print(
-            f"{I[inventory.item_id]['NAME']} Inventory: {inventory.on_hand_inventory} units")
+            f"{ITEM[inventory.item_id]['NAME']} Inventory: {inventory.on_hand_inventory} units")
 
     print(f"============= SimPy Simulation Begins =============")
 
@@ -35,9 +32,23 @@ for x in range(SIM_TIME):
             print(log)
     daily_events.clear()
 
-    env.update_daily_report(inventoryList)
+  # 간트차트 데이터 저장
+
+
+plot_gantt_chart(gantt_data)    
+
+export_Daily_Report = []
 
 """
+if VISUALIZATION != False:
+    visualization.generate_gantt_chart(export_Daily_Report)
+"""
+
+"""
+if PRINT_GRAPH_RECORD :
+    production_log = log_production(daily_events)
+    generate_gantt_chart(production_log)
+
 if PRINT_GRAPH_RECORD:
     plot_gantt_chart(gantt_data)
 """
