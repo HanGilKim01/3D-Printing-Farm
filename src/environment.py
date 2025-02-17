@@ -4,8 +4,6 @@ import numpy as np
 from config import *  # Assuming this imports necessary configurations
 from log import *  # Assuming this imports necessary logging functionalities
 from visualization import *
-
-import pandas as pd
 import random
 
 """ csv 파일 로드하는 형식
@@ -117,6 +115,7 @@ class Print:
                     daily_events.append(f"{present_daytime(self.env.now)}: Stop {self.name} ({printer_name}) due to full inventory.")
                     break
 
+                daily_events.append("===============Print Phase===============")
                 daily_events.append(f"{present_daytime(self.env.now)}: {self.name} ({printer_name}) begins producing batch {self.batch_numbers[machine_id]},{self.batch_size} units.")
                 start_time = self.env.now
                 yield self.env.timeout((self.processing_time - TIME_CORRECTION) * self.batch_size)
@@ -151,7 +150,7 @@ class Print:
                 
                 self.batch_numbers[machine_id] += 2
 
-            
+
 
 
                 daily_events.append(f"{present_daytime(self.env.now)}: {self.name} ({printer_name}) completes batch {self.batch_numbers[machine_id] - 2}.")
@@ -230,7 +229,7 @@ class PostProcess:
                 
                 
                 
-                yield self.env.timeout(self.processing_time - TIME_CORRECTION)  # 병렬 생산 반영
+                #yield self.env.timeout(self.processing_time - TIME_CORRECTION)  # 병렬 생산 반영
                 
                 if self.total_produced == 0:
                     start_time = self.env.now
@@ -240,6 +239,8 @@ class PostProcess:
                 # 입력 재고 감소
                 for inven, input_qnty in zip(self.input_inventories, self.qnty_for_input_item):
                     inven.update_inven_level(-input_qnty, "ON_HAND", daily_events)
+
+                yield self.env.timeout(self.processing_time - TIME_CORRECTION)  # 병렬 생산 반영
 
                 # 출력 재고 증가
                 self.output_inventory.update_inven_level(1, "ON_HAND", daily_events)
