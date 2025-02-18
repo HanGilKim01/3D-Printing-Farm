@@ -9,17 +9,12 @@ from environment import *
 scenario = {"DEMAND": ORDER_SCENARIO}
 
 # Create environment
-simpy_env, inventoryList, BuildList, postprocessList, customer, daily_events = env.create_env(ITEM, MACHINE, LOG_DAILY_EVENTS)
+simpy_env, printer, postprocessor, customer, daily_events = env.create_env(ITEM, MACHINE, LOG_DAILY_EVENTS)
 
-env.simpy_event_processes(simpy_env, inventoryList, BuildList, postprocessList,  customer, daily_events, ITEM, scenario)
+env.simpy_event_processes(simpy_env, printer, postprocessor, customer, daily_events, ITEM, scenario)
 
 
 if PRINT_SIM_EVENTS:
-    print(f"============= Initial Inventory Status =============")
-    for inventory in inventoryList:
-        print(
-            f"{ITEM[inventory.item_id]['NAME']} Inventory: {inventory.on_hand_inventory} units")
-
     print(f"============= SimPy Simulation Begins =============")
 
 for x in range(SIM_TIME):

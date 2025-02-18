@@ -24,7 +24,7 @@ import numpy as np
 # INPUT_TYPE_LIST: List of types of input materials or WIPs
 # QNTY_FOR_INPUT_ITEM: Quantity of input materials or WIPs [units]
 
-ORDER = {"ORDER_QUANTITY": 10, "CUST_ORDER_CYCLE": 28, "JOB_SIZE": 50 }
+ORDER = {"ORDER_QUANTITY": 5, "CUST_ORDER_CYCLE": 28, "JOB_SIZE": 8}
 
 ITEM = {
         0: {"ID": 0, "TYPE": "Product", "NAME": "Aligner",
@@ -37,7 +37,7 @@ MACHINE = {
             0: {"ID": 0, "TYPE": "Print", "NAME": "PRINTER-1",
                "NUM_PRINTERS" : 2,"OUTPUT": ITEM[1], "PRODUCTION_RATE": 600},
             1: {"ID": 1, "TYPE": "Post-process", "NAME": "Post-processor-1",
-                "PRODUCTION_RATE": 48, "NUM_POST_PROCESSORS" : 4,
+                "PRODUCTION_RATE": 96, "NUM_POST_PROCESSORS" : 2,
                 "INPUT_TYPE_LIST": [ITEM[1]], "QNTY_FOR_INPUT_ITEM": [1], "OUTPUT": ITEM[0]}
             }
 
@@ -61,6 +61,10 @@ def ORDER_QTY_FUNC(scenario):
     # Uniform distribution
     if scenario["Dist_Type"] == "UNIFORM":
         return random.randint(scenario['min'], scenario["max"])
+
+# 모델 리스트 정의
+model_list = [f"Aligner_Model_{i+1}" for i in range(50)]
+gantt_data = []
 
 
 PRINT_GRAPH_RECORD = True
