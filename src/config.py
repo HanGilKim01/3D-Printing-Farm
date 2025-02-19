@@ -24,7 +24,7 @@ import numpy as np
 # INPUT_TYPE_LIST: List of types of input materials or WIPs
 # QNTY_FOR_INPUT_ITEM: Quantity of input materials or WIPs [units]
 
-ORDER = {"ORDER_QUANTITY": 5, "CUST_ORDER_CYCLE": 28, "JOB_SIZE": 8}
+ORDER = {"ORDER_QUANTITY": 6, "CUST_ORDER_CYCLE": 28, "JOB_SIZE": 8}
 
 ITEM = {
         0: {"ID": 0, "TYPE": "Product", "NAME": "Aligner",

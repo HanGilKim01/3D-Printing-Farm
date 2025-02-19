@@ -33,17 +33,3 @@ for x in range(SIM_TIME):
 plot_gantt_chart(gantt_data)    
 
 export_Daily_Report = []
-
-"""
-if VISUALIZATION != False:
-    visualization.generate_gantt_chart(export_Daily_Report)
-"""
-
-"""
-if PRINT_GRAPH_RECORD :
-    production_log = log_production(daily_events)
-    generate_gantt_chart(production_log)
-
-if PRINT_GRAPH_RECORD:
-    plot_gantt_chart(gantt_data)
-"""

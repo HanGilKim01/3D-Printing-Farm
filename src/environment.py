@@ -1,14 +1,9 @@
 import simpy
-import functools
 import numpy as np
 from config import *  # Assuming this imports necessary configurations
 from log import *  # Assuming this imports necessary logging functionalities
 from visualization import *
 import random
-
-
-import functools
-import simpy
 
 class Print:
     
@@ -116,7 +111,7 @@ class Print:
             if not self.is_busy(machine_id):
                 self.env.process(self.process_for_machine(machine_id, daily_events))
 
-import simpy
+
 
 class PostProcess:
     
@@ -133,7 +128,7 @@ class PostProcess:
         self.total_produced = 0
         self.batch_number = 1
         self.order_quantity = ORDER['ORDER_QUANTITY'] * self.batch_size
-        
+
         # PostProcess 기계 & queue 추가
         self.machines = [simpy.Resource(env, capacity=1) for _ in range(self.num_machines)]
         self.queue = simpy.Store(env)  # 🔹 batch를 받을 queue 생성
@@ -334,13 +329,6 @@ class Customer:
             yield self.env.timeout(ORDER["CUST_ORDER_CYCLE"] * 24)
             #고객 주문 주기(custordercycle)에 따라 다음 주문 생성까지 대기
 
-
-
-class Job:
-    def __init__(self, env, job_id, config):
-        self.env = env  # SimPy 환경 객체
-        self.job_id = job_id  # Job ID
-        self.size = np.random.randint(*config["SIZE_RANGE"])
 
 
 
