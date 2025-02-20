@@ -14,6 +14,7 @@ class Print:
         self.production_rate = production_rate[0]
         self.output = output
         self.postprocess = postprocess
+
         self.processing_time = 24 / self.production_rate
         self.batch_size = ORDER['JOB_SIZE']  # 50개 단위 출력
         self.num_printers = MACHINE[self.process_id]["NUM_PRINTERS"]
@@ -58,7 +59,7 @@ class Print:
                 self.batch_counter += 1  # 전역 batch 번호 증가
 
                 daily_events.append("===============Print Phase===============")
-                daily_events.append(f"{present_daytime(self.env.now)}: {self.name} ({printer_name}) begins producing batch {current_batch_number}, {self.batch_size} units.")
+                daily_events.append(f"{present_daytime(self.env.now)}: {self.name} ({printer_name}) begins producing Order {current_batch_number}, {self.batch_size} units.")
 
                 
                 
@@ -77,12 +78,15 @@ class Print:
                 daily_events.append("===============Print Result Phase===============")
                 daily_events.append(f"{present_daytime(self.env.now)}: {self.output['NAME']} has been produced: {produced_items}")
 
-                #self.postprocess.queue.put({"ID": current_batch_number, "Products": produced_items})
-                if isinstance(self.postprocess, list):  
-                    self.postprocess[0].queue.put({"ID": current_batch_number, "Products": produced_items})  # ✅ 첫 번째 후처리 기계에 배치
-                else:
-                    self.postprocess.queue.put({"ID": current_batch_number, "Products": produced_items})  # ✅ 단일 객체일 경우
                 
+                if isinstance(self.postprocess, list):  
+                    self.postprocess[0].queue.put({"ID": current_batch_number, "Products": produced_items}) 
+                else:
+                    self.postprocess.queue.put({"ID": current_batch_number, "Products": produced_items})
+                
+                
+
+
                 
                 # 간트차트 데이터 저장
                 self.gantt_data.append({
@@ -90,7 +94,7 @@ class Print:
                     'Batch ID': current_batch_number,
                     'Start Time': start_time,
                     'End Time': end_time,
-                    'Model': f"Print Batch {current_batch_number}", 
+                    'Model': f"Print Order {current_batch_number}", 
                     'Produced Units': self.batch_size  
                 })
 
@@ -99,11 +103,11 @@ class Print:
 
                 # 🔹 목표 batch 개수 도달 시 종료
                 if self.batch_counter > self.total_batches:
-                    daily_events.append(f"{present_daytime(self.env.now)}: Production completed! Total {self.total_batches} batches produced.")
+                    daily_events.append(f"{present_daytime(self.env.now)}: Production completed! Total {self.total_batches} Orders-WIP produced.")
                     break
 
                 # 현재 작업이 완료되었음을 로그에 추가
-                daily_events.append(f"{present_daytime(self.env.now)}: {self.name} ({printer_name}) completes batch {current_batch_number}.")
+                daily_events.append(f"{present_daytime(self.env.now)}: {self.name} ({printer_name}) completes Order {current_batch_number}.")
                 yield self.env.timeout(TIME_CORRECTION)
 
     def start_production(self, daily_events):
@@ -111,8 +115,97 @@ class Print:
             if not self.is_busy(machine_id):
                 self.env.process(self.process_for_machine(machine_id, daily_events))
 
+class PostProcess:
+    
+    def __init__(self, env, name, process_id, production_rate, output):
+        self.env = env
+        self.name = name
+        self.process_id = process_id
+        self.production_rate = 24
+        self.output = output
+        self.batch_size = ORDER['JOB_SIZE']
+        self.num_machines = MACHINE[self.process_id]["NUM_POST_PROCESSORS"]  # 🔹 기계 2대 사용
+        self.processing_time = (24 / self.production_rate) # 🔹 병렬 생산 고려
+        self.total_produced = 0
+        self.order_quantity = ORDER['ORDER_QUANTITY'] * self.batch_size
 
 
+        self.busy_machines = [False] * self.num_machines
+
+        # 🔹 PostProcess 기계 & queue 추가
+        self.machines = [simpy.Resource(env, capacity=1) for _ in range(self.num_machines)]
+        self.queue = simpy.Store(env)  # 🔹 batch를 받을 queue 생성
+        self.gantt_data = gantt_data
+        self.global_unit_counter = 0
+
+    def is_busy(self, machine_id):
+        """ 현재 기계가 사용 중인지 확인 """
+        return self.busy_machines[machine_id]
+
+    def next_available_machine(self):
+        """ 쉬고 있는 프린터 중 가장 먼저 찾은 기계의 ID 반환 """
+        for i in range(self.num_machines):
+            if not self.is_busy(i):
+                return i
+        return None  # 모든 프린터가 바쁠 경우 None 반환
+    
+    def process_for_machine(self, machine_id, daily_events):
+        """ 특정 기계가 queue에서 batch를 받아와 병렬적으로 후처리를 수행 """
+        machine_name = f"Machine {machine_id + 1}"
+        current_order = 1  # 첫 번째 Order부터 시작
+
+        while self.total_produced < self.order_quantity:  # 전체 생산량 목표가 다 차기 전까지 반복
+            batch = yield self.queue.get()  # queue에서 batch 꺼내기
+            batch_id = batch['ID']
+            products = batch['Products']
+
+            # 각 unit을 개별적으로 처리
+            for unit_id in enumerate(products):
+                if self.total_produced >= self.order_quantity:
+                    break  # 목표 생산량 달성 시 종료
+
+                with self.machines[machine_id].request() as request:
+                    yield request  # 기계 사용 요청
+
+                    self.busy_machines[machine_id] = True  # 기계 사용 중 상태로 변경
+                    self.global_unit_counter += 1  # unit 번호 증가
+                    current_unit_id = self.global_unit_counter  # 현재 처리할 unit의 고유 ID
+
+                    start_time = self.env.now
+                    daily_events.append(f"{present_daytime(start_time)}: Order {current_order} - Unit {current_unit_id} started on {machine_name}!")
+
+                    # 후처리 진행 (기계가 처리하는 시간)
+                    yield self.env.timeout(self.processing_time - TIME_CORRECTION)
+
+                    # 작업 완료 후 결과 출력
+                    daily_events.append(f"{present_daytime(self.env.now)}: {machine_name} finished processing Unit {current_unit_id} of Order {current_order}!")
+
+                    self.total_produced += 1  # 생산량 증가
+                    self.busy_machines[machine_id] = False  # 기계 상태를 유휴로 변경
+
+                    # 🔹 batch_size만큼 처리하면 결과 출력
+                    if self.total_produced % self.batch_size == 0:
+                        daily_events.append("===============PostProcessResult Phase================")
+                        daily_events.append(f"{present_daytime(self.env.now)}: {self.output['NAME']} has been produced: Order {current_order}")
+                        current_order += 1
+                        self.global_unit_counter = 0
+
+                    yield self.env.timeout(TIME_CORRECTION)  # 시간 보정
+
+            # 한 Order가 끝났을 때, 다음 Order로 넘어감
+            
+
+        # 전체 생산량 목표를 달성했으면 종료
+        daily_events.append(f"{present_daytime(self.env.now)}: Post-processing completed for all orders!")
+
+    def start_processing(self, daily_events):
+        """ 각 기계가 queue에서 batch를 꺼내 처리하도록 설정 """
+        for machine_id in range(self.num_machines):
+            if not self.is_busy(machine_id):
+                self.env.process(self.process_for_machine(machine_id, daily_events))
+
+
+"""
 class PostProcess:
     
     def __init__(self, env, name, process_id, production_rate, output):
@@ -120,11 +213,12 @@ class PostProcess:
         self.env = env
         self.name = name
         self.process_id = process_id
-        self.production_rate = production_rate
+        self.production_rate = production_rate[1]
         self.output = output
+
         self.batch_size = ORDER['JOB_SIZE']
         self.num_machines = MACHINE[self.process_id]["NUM_POST_PROCESSORS"]
-        self.processing_time = (24 / self.production_rate) / self.num_machines
+        self.processing_time = 24 / self.production_rate
         self.total_produced = 0
         self.batch_number = 1
         self.order_quantity = ORDER['ORDER_QUANTITY'] * self.batch_size
@@ -133,172 +227,64 @@ class PostProcess:
         self.machines = [simpy.Resource(env, capacity=1) for _ in range(self.num_machines)]
         self.queue = simpy.Store(env)  # 🔹 batch를 받을 queue 생성
         self.gantt_data = gantt_data
-
+    
     def process_for_machine(self, machine_id, daily_events):
-        """
-        각 기계가 queue에서 batch를 받아와 독립적으로 후처리를 수행함
-        """
-        while True:
-            # 🔹 queue에서 batch 꺼내기 (없으면 대기)
+
+        machine_name = f"PostProcess-{machine_id + 1}"
+
+
+        while self.total_produced < self.order_quantity:
+
             batch = yield self.queue.get()
+            
 
             with self.machines[machine_id].request() as request:
-                yield request
-
+                yield request  # 기계 사용 요청 (빈자리 있을 때만 실행됨)
+                
                 start_time = self.env.now
+                
                 daily_events.append("===============PostProcess Phase================")
-                daily_events.append(f"{present_daytime(start_time)}: Batch {batch['ID']} Post-processing started!")
-
-                # 후처리 진행
+                daily_events.append(f"{present_daytime(start_time)}: Order {batch['ID']} Post-processing started on Machine {machine_name}!")
+                
+                
+            # 후처리 진행
                 yield self.env.timeout(self.processing_time - TIME_CORRECTION)  
+                end_time = self.env.now
+            # 🔹 총 생산량 업데이트
+                self.total_produced += self.batch_size
 
-                # 🔹 총 생산량 업데이트
-                self.total_produced += 1
-
-                # 🔹 batch 단위로 결과 출력
+            # 🔹 batch 단위로 결과 출력
                 if self.total_produced >= self.batch_size:
                     daily_events.append("===============PostProcessResult Phase================")
-                    daily_events.append(f"{present_daytime(self.env.now)}: {self.output['NAME']} has been produced: Batch {batch['ID']}")
+                    daily_events.append(f"{present_daytime(self.env.now)}: {self.output['NAME']} has been produced: Order {batch['ID']}")
+                    
 
-                    end_time = self.env.now
+                    
+                    
                     self.gantt_data.append({
-                        'Machine': f'PostProcess',
-                        'Batch ID': batch['ID'],
-                        'Start Time': start_time,
-                        'End Time': end_time,
-                        'Model': f"PostProcess Batch {batch['ID']}",
-                        'Produced Units': self.batch_size
-                    })
+                    'Machine': f'PostProcess {machine_id + 1}',
+                    'Batch ID': batch['ID'],
+                    'Start Time': start_time,
+                    'End Time': end_time,
+                    'Model': f"PostProcess Batch {batch['ID']}",
+                    'Produced Units': self.batch_size
+                        })
 
-                    self.batch_number += 1
-                    self.total_produced = 0  # 생산량 초기화
+                self.batch_number += 1
+                    
 
-                # 🔹 주문량만큼 생산되면 종료
+            # 🔹 주문량만큼 생산되면 종료
                 if self.total_produced >= self.order_quantity:
                     daily_events.append(f"{present_daytime(self.env.now)}: Order completed! {self.order_quantity} units produced. Stopping production.")
                     break
 
                 yield self.env.timeout(TIME_CORRECTION)  # 시간 보정
-
-    def start_processing(self, daily_events):
-        """ 각 기계가 queue에서 batch를 꺼내 처리하도록 설정 """
-        for machine_id in range(self.num_machines):
-            self.env.process(self.process_for_machine(machine_id, daily_events))
-
-
-"""
-class PostProcess:
     
-    def __init__(self, env, name, process_id, production_rate, output, input_inventories, qnty_for_input_item, output_inventory, ):
-        # Initialize production process
-        self.env = env
-        self.name = name
-        self.process_id = process_id
-        self.production_rate = production_rate
-        self.output = output
-        self.input_inventories = input_inventories
-        self.qnty_for_input_item = qnty_for_input_item
-        self.output_inventory = output_inventory
-        self.processing_time = 24 / self.production_rate
-        self.print_stop = True
-        self.print_limit = True
-        self.batch_size = ORDER['JOB_SIZE']
-        self.num_printers = MACHINE[self.process_id]["NUM_POST_PROCESSORS"]
-        self.processing_time = (24 / self.production_rate) / self.num_printers
-        self.total_produced = 0
-        self.order_quantity = ORDER['ORDER_QUANTITY']*ORDER['JOB_SIZE']
-
-        self.queue = simpy.Store(env)
-
-        # 후처리 기계 4대 운영
-        self.machines = [simpy.Resource(env, capacity=1) for _ in range(self.num_printers)]
-        self.batch_number = 1
-        self.gantt_data = gantt_data
-        
-
-
-    def process_for_machine(self, machine_id, daily_events):
+    
+    
+    def start_processing(self, daily_events):
        
-        
-        while True:
-            with self.machines[machine_id].request() as request:
-                yield request
-   
-
-                # 입력 재고 확인 (필요한 재고가 없으면 대기)
-                shortage_check = any(inven.on_hand_inventory < input_qnty
-                                     for inven, input_qnty in zip(self.input_inventories, self.qnty_for_input_item))
-
-                if shortage_check:
-                    if self.print_stop:
-                        daily_events.append(f"{present_daytime(self.env.now)}: Stop {self.name} due to input shortage")
-                    self.print_stop = False
-                    yield self.env.timeout(1)  # 1시간 대기 후 재확인
-                    continue
-
-                # 출력 재고 확인 (최대 용량 초과 시 대기)
-                if self.output_inventory.on_hand_inventory >= self.output_inventory.capacity_limit:
-                    if self.print_limit:
-                        daily_events.append(f"{present_daytime(self.env.now)}: Stop {self.name} due to full inventory")
-                    self.print_limit = False
-                    yield self.env.timeout(1)  # 1시간 대기 후 재확인
-                    continue
-
-                
-                
-                
-                #yield self.env.timeout(self.processing_time - TIME_CORRECTION)  # 병렬 생산 반영
-                
-                if self.total_produced == 0:
-                    start_time = self.env.now
-                    
-                    daily_events.append("===============PostProcess Phase================")
-                    daily_events.append(f"{present_daytime(start_time)}: Batch {self.batch_number} Post-processing started!")
-                # 입력 재고 감소
-                for inven, input_qnty in zip(self.input_inventories, self.qnty_for_input_item):
-                    inven.update_inven_level(-input_qnty, "ON_HAND", daily_events)
-
-                yield self.env.timeout(self.processing_time - TIME_CORRECTION)  # 병렬 생산 반영
-
-                # 출력 재고 증가
-                self.output_inventory.update_inven_level(1, "ON_HAND", daily_events)
-
-                # 🔹 총 생산량 업데이트
-                self.total_produced += 1
-
-                # 🔹 50개 단위로 결과 출력
-                if self.total_produced >= self.batch_size:
-                    daily_events.append("===============PostProcessResult Phase================")
-                    daily_events.append(f"{present_daytime(self.env.now)}: {self.output['NAME']} has been produced: Batch {self.batch_number}")
-
-                    end_time = self.env.now
-                    
-                    self.gantt_data.append({
-                        'Machine': f'PostProcess',
-                        'Batch ID': self.batch_number,
-                        'Start Time': start_time,
-                        'End Time': end_time,
-                        'Model': f"PostProcess Batch {self.batch_number}",
-                        'Produced Units': self.batch_size
-                        })
-
-                
-                    
-                    self.batch_number += 1
-                    self.total_produced = 0  # 생산량 초기화
-                    
-                    
-                    
-                
-                if self.total_produced >= self.order_quantity:  # 🔹 주문량만큼 생산되면 종료
-                    daily_events.append(f"{present_daytime(self.env.now)}: Order completed! {self.order_quantity} units produced. Stopping production.")
-                    break
-
-                yield self.env.timeout(TIME_CORRECTION)  # 시간 보정
-
-    def start_production(self, daily_events):
-       
-        for machine_id in range(self.num_printers):
+        for machine_id in range(self.num_machines):
             self.env.process(self.process_for_machine(machine_id, daily_events))
 """
 
@@ -353,7 +339,7 @@ def create_env(ITEM, MACHINE, daily_events):
     customer = Customer(simpy_env, "CUSTOMER", ITEM[0]["ID"])
 
     postprocessor = [PostProcess(simpy_env, "Post-process", MACHINE[1]["ID"],
-                                   MACHINE[1]["PRODUCTION_RATE"], MACHINE[1]["OUTPUT"],  
+                                   [MACHINE[machine_id]["PRODUCTION_RATE"] for machine_id in MACHINE], MACHINE[1]["OUTPUT"],  
                                    )]
 
     printer = [Print(simpy_env, "3D-Printing" , MACHINE[0]["ID"],
@@ -384,7 +370,8 @@ def simpy_event_processes(simpy_env, printer, postprocessor, customer, daily_eve
     #process_itmes 제조 공정 입력 재료 소비하고 산출물 생성
     
     for postprocess in postprocessor:
-        simpy_env.process(postprocess.process_for_machine(machine_id, daily_events))
+        for machine_id in range(postprocess.num_machines) :
+            simpy_env.process(postprocess.process_for_machine(machine_id, daily_events))
     
 
     

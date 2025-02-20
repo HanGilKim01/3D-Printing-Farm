@@ -30,6 +30,6 @@ for x in range(SIM_TIME):
   # 간트차트 데이터 저장
 
 
-plot_gantt_chart(gantt_data)    
+#plot_gantt_chart(gantt_data)    
 
 export_Daily_Report = []

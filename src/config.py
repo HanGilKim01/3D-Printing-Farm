@@ -24,7 +24,7 @@ import numpy as np
 # INPUT_TYPE_LIST: List of types of input materials or WIPs
 # QNTY_FOR_INPUT_ITEM: Quantity of input materials or WIPs [units]
 
-ORDER = {"ORDER_QUANTITY": 6, "CUST_ORDER_CYCLE": 28, "JOB_SIZE": 8}
+ORDER = {"ORDER_QUANTITY": 5, "CUST_ORDER_CYCLE": 28, "JOB_SIZE": 4}
 
 ITEM = {
         0: {"ID": 0, "TYPE": "Product", "NAME": "Aligner",
@@ -35,13 +35,13 @@ ITEM = {
 
 MACHINE = {
             0: {"ID": 0, "TYPE": "Print", "NAME": "PRINTER-1",
-               "NUM_PRINTERS" : 2,"OUTPUT": ITEM[1], "PRODUCTION_RATE": 600},
+               "NUM_PRINTERS" : 2,"OUTPUT": ITEM[1], "PRODUCTION_RATE": 576}, #1시간에 24개 - 20분에 8개
             1: {"ID": 1, "TYPE": "Post-process", "NAME": "Post-processor-1",
-                "PRODUCTION_RATE": 96, "NUM_POST_PROCESSORS" : 2,
+                "PRODUCTION_RATE": 24, "NUM_POST_PROCESSORS" : 2,
                 "INPUT_TYPE_LIST": [ITEM[1]], "QNTY_FOR_INPUT_ITEM": [1], "OUTPUT": ITEM[0]}
             }
 
-
+#1시간에 4개 - 2대니까, 1시간에 8개
 
 
 
