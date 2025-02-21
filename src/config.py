@@ -63,7 +63,10 @@ def ORDER_QTY_FUNC(scenario):
         return random.randint(scenario['min'], scenario["max"])
 
 # 모델 리스트 정의
-model_list = [f"Aligner_Model_{i+1}" for i in range(50)]
+customer_model_list = [{"Customer ID": customer_id, "Model": model_id}
+                        for customer_id in range(1, ORDER['ORDER_QUANTITY'] + 1)
+                        for model_id in range(1, ORDER['JOB_SIZE'] + 1)]
+
 gantt_data = []
 
 
