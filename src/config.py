@@ -35,13 +35,13 @@ ITEM = {
 
 MACHINE = {
             0: {"ID": 0, "TYPE": "Print", "NAME": "PRINTER-1",
-               "NUM_PRINTERS" : 2,"OUTPUT": ITEM[1], "PRODUCTION_RATE": 576}, #1시간에 24개 - 20분에 8개
+               "NUM_PRINTERS" : 2,"OUTPUT": ITEM[1], "PRODUCTION_RATE": 24}, #1시간에 24개 - 20분에 8개
             1: {"ID": 1, "TYPE": "Post-process", "NAME": "Post-processor-1",
-                "PRODUCTION_RATE": 24, "NUM_POST_PROCESSORS" : 2,
+                "PRODUCTION_RATE": 24, "NUM_POST_PROCESSORS" : 5,
                 "INPUT_TYPE_LIST": [ITEM[1]], "QNTY_FOR_INPUT_ITEM": [1], "OUTPUT": ITEM[0]}
             }
 
-#1시간에 4개 - 2대니까, 1시간에 8개
+#1시간에 1개 - 2대니까, 1시간에 2개
 
 
 
@@ -63,11 +63,13 @@ def ORDER_QTY_FUNC(scenario):
         return random.randint(scenario['min'], scenario["max"])
 
 # 모델 리스트 정의
-customer_model_list = [{"Customer ID": customer_id, "Model": model_id}
-                        for customer_id in range(1, ORDER['ORDER_QUANTITY'] + 1)
-                        for model_id in range(1, ORDER['JOB_SIZE'] + 1)]
+customer_model_list = [{"Customer ID": customer_id, 
+                        "Model": [{"Product": model_id} for model_id in range(1, ORDER['JOB_SIZE'] + 1)]}
+                        for customer_id in range(1, ORDER['ORDER_QUANTITY'] + 1)]
+print(customer_model_list)
 
 gantt_data = []
+
 
 
 PRINT_GRAPH_RECORD = True
