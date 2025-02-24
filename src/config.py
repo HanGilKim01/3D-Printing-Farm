@@ -66,7 +66,7 @@ def ORDER_QTY_FUNC(scenario):
 customer_model_list = [{"Customer ID": customer_id, 
                         "Model": [{"Product": model_id} for model_id in range(1, ORDER['JOB_SIZE'] + 1)]}
                         for customer_id in range(1, ORDER['ORDER_QUANTITY'] + 1)]
-print(customer_model_list)
+
 
 gantt_data = []
 

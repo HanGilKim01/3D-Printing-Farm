@@ -5,6 +5,8 @@ from log import *  # Assuming this imports necessary logging functionalities
 from visualization import *
 import random
 
+
+
 class Print:
     
     def __init__(self, env, name, process_id, production_rate, output, postprocess):
@@ -127,6 +129,7 @@ class Print:
             if not self.is_busy(machine_id):
                 self.env.process(self.process_for_machine(machine_id, daily_events))
 
+
 class PostProcess:
     
     def __init__(self, env, name, process_id, production_rate, output, queue):
@@ -246,8 +249,6 @@ class PostProcess:
         while len(self.completed_orders) < ORDER['ORDER_QUANTITY']:
             yield self.env.timeout(1)
     
-#        for machine_id in range(self.num_machines):
- #           self.env.process(self.process_for_machine(machine_id, daily_events))
 
 
 class Customer:
@@ -276,12 +277,12 @@ class Customer:
             #고객 주문 주기(custordercycle)에 따라 다음 주문 생성까지 대기
 
 
-"""
+
 class Order:
     def __init__(self, order_id, jobs):
         self.order_id = order_id
         self.jobs = jobs  # 이 주문에 포함된 Job 리스트
-"""
+
     
 
 
