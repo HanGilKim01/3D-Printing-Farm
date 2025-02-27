@@ -212,7 +212,7 @@ class PostProcess:
             self.busy_machines[machine_id] = True
 
             daily_events.append("===============PostProcess Start===============")
-            daily_events.append(f"{present_daytime(self.env.now)}: {machine_name} starts processing Unit {product_name} of Order {order_id}.")
+            daily_events.append(f"{present_daytime(self.env.now)}: {machine_name} starts processing Product {product_name} of Order {order_id}.")
 
             start_time = self.env.now
             yield self.env.timeout(self.processing_time - TIME_CORRECTION)  # 1개 처리 시간
@@ -223,7 +223,7 @@ class PostProcess:
                     'Machine': f'PostProcess {machine_id + 1}',
                     'Start Time': start_time,
                     'End Time': end_time,
-                    'Model': f"Unit {product_name} of Order {order_id}",
+                    'Model': f"Product {product_name} of Order {order_id}",
                     'Produced Units': self.batch_size
                         })
 
@@ -232,7 +232,7 @@ class PostProcess:
             self.busy_machines[machine_id] = False
 
             daily_events.append("===============PostProcess Result===============")
-            daily_events.append(f"{present_daytime(self.env.now)}: {machine_name} finished Unit {product_name} of Order {order_id}!")
+            daily_events.append(f"{present_daytime(self.env.now)}: {machine_name} finished Product {product_name} of Order {order_id}!")
 
                 #if self.total_produced >= self.total_quantity:
                  #   daily_events.append(f"{present_daytime(self.env.now)}: All Orders completed! Total {self.total_quantity} units processed.")
