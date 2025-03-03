@@ -130,6 +130,7 @@ class Print:
                 self.env.process(self.process_for_machine(machine_id, daily_events))
 
 
+
 class PostProcess:
     
     def __init__(self, env, name, process_id, production_rate, output, queue):
@@ -285,6 +286,15 @@ class Order:
 
     
 
+class Job :
+    def __init__(self):
+        pass
+
+
+
+class Item :
+    def __init__(self):
+        pass
 
 
 
