@@ -5,13 +5,12 @@ import visualization
 from visualization import *
 from environment import *
 
-# Define the scenario
-scenario = {"DEMAND": ORDER_SCENARIO}
+
 
 # Create environment
-simpy_env, printer, postprocessor, customer, daily_events = env.create_env(ITEM, MACHINE, LOG_DAILY_EVENTS)
+simpy_env, printer, postprocessor, customer, daily_events = env.create_env(MACHINE, LOG_DAILY_EVENTS)
 
-env.simpy_event_processes(simpy_env, printer, postprocessor, customer, daily_events, ITEM, scenario)
+env.simpy_event_processes(simpy_env, printer, postprocessor, customer, daily_events)
 
 
 if PRINT_SIM_EVENTS:

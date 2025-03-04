@@ -5,9 +5,63 @@ from log import *  # Assuming this imports necessary logging functionalities
 from visualization import *
 import random
 
+class Customer:
+    def __init__(self, env, name, item_id,):
+        # Initialize customer object
+        self.env = env
+       
+        self.current_job_id = 0  # Job ID 초기값
+        self.last_assigned_printer = -1 # 마지막으로 할당된 프린터 ID
+        self.name = name
+        self.item_id = item_id
+        
+  
+    def order_product(self, daily_events, scenario):
+        #제품 주문 생성, 주문량 판매 프로세스로 전달(,Sales객체-주문처리, 재고객체, 이벤트로그리스트, 주문량 생성 시나리오(분포유형))
+        """
+        Place orders for products to the sales process.
+        """
+        while True:
+            
+        
+            yield self.env.timeout(ORDER["CUST_ORDER_CYCLE"] * 24)
+            #고객 주문 주기(custordercycle)에 따라 다음 주문 생성까지 대기
 
 
-class Print:
+class Order:
+    def __init__(self, order_id, jobs):
+        self.order_id = order_id
+        self.jobs = jobs  # 이 주문에 포함된 Job 리스트
+
+
+class Production_Planning :
+    def __init__(self):
+        pass
+
+
+class Job :
+    def __init__(self):
+        pass
+
+
+
+class Item :
+    """
+    Item에 대한 정보를 담음
+    """
+    def __init__(self, item_id, value):
+        self.id = item_id
+        self.value = value
+
+    def transform_list(item_list):
+        """랜덤 리스트를 Item 객체 리스트로 변환하고, ID 리스트 반환"""
+        item_objects = [Item(i+1, value) for i, value in enumerate(item_list)]
+        
+        return [item.id for item in item_objects]
+        
+
+
+class Proc_Build:
     
     def __init__(self, env, name, process_id, production_rate, output, postprocess):
         self.env = env
@@ -19,10 +73,10 @@ class Print:
 
         self.processing_time = 24 / self.production_rate
         self.batch_size = ORDER['JOB_SIZE']  # 50개 단위 출력
-        self.num_printers = MACHINE[self.process_id]["NUM_PRINTERS"]
+        self.num_printers = MACHINE[self.process_id]["NUM_MACHINES"]
         self.total_produced = 0
         self.total_batches = ORDER['ORDER_QUANTITY']  # 🔹 목표 batch 개수 설정 (5개)
-        self.model_list = customer_model_list  # 50개의 모델 리스트
+        self.model_list = Job_list  # 50개의 모델 리스트
 
         self.batch_counter = 1 # 전역적으로 batch 번호 관리
         self.busy_machines = [False] * self.num_printers  # 프린터 상태 (False: 쉬고 있음, True: 작업 중)
@@ -141,7 +195,7 @@ class PostProcess:
         self.output = output
 
         self.batch_size = ORDER['JOB_SIZE']
-        self.num_machines = MACHINE[self.process_id]["NUM_POST_PROCESSORS"]  # 🔹 기계 2대 사용
+        self.num_machines = MACHINE[self.process_id]["NUM_MACHINES"]  # 🔹 기계 2대 사용
         self.processing_time = 24 / self.production_rate # 🔹 병렬 생산 고려
         self.total_produced = 0
         self.total_quantity = ORDER['ORDER_QUANTITY'] * self.batch_size
@@ -251,50 +305,9 @@ class PostProcess:
             yield self.env.timeout(1)
     
 
-
-class Customer:
-    def __init__(self, env, name, item_id,):
-        # Initialize customer object
-        self.env = env
-       
-        self.current_job_id = 0  # Job ID 초기값
-        self.last_assigned_printer = -1 # 마지막으로 할당된 프린터 ID
-        self.name = name
-        self.item_id = item_id
-        
-  
-    def order_product(self, daily_events, scenario):
-        #제품 주문 생성, 주문량 판매 프로세스로 전달(,Sales객체-주문처리, 재고객체, 이벤트로그리스트, 주문량 생성 시나리오(분포유형))
-        """
-        Place orders for products to the sales process.
-        """
-        while True:
-            # Generate a random demand quantity
-            ORDER["ORDER_QUANTITY"] = ORDER_QTY_FUNC(scenario)
-            #scenario기반으로 무작위 수요량 생성하고 결과를 ORDER["ORDER_QUANTITY"]에 저장
-            # Receive demands and initiate delivery process
-            
-            yield self.env.timeout(ORDER["CUST_ORDER_CYCLE"] * 24)
-            #고객 주문 주기(custordercycle)에 따라 다음 주문 생성까지 대기
-
-
-
-class Order:
-    def __init__(self, order_id, jobs):
-        self.order_id = order_id
-        self.jobs = jobs  # 이 주문에 포함된 Job 리스트
+#class Proc_Wash/Dry/Inspection
 
     
-
-class Job :
-    def __init__(self):
-        pass
-
-
-
-class Item :
-    def __init__(self):
-        pass
 
 
 
@@ -312,7 +325,7 @@ def create_env(ITEM, MACHINE, daily_events):
                                    [MACHINE[machine_id]["PRODUCTION_RATE"] for machine_id in MACHINE], MACHINE[1]["OUTPUT"], simpy.Store(simpy_env),  
                                    )]
 
-    printer = [Print(simpy_env, "3D-Printing" , MACHINE[0]["ID"],
+    printer = [Proc_Build(simpy_env, "3D-Printing" , MACHINE[0]["ID"],
                                    [MACHINE[machine_id]["PRODUCTION_RATE"] for machine_id in MACHINE],
                                    MACHINE[0]["OUTPUT"], 
                                    postprocessor)]

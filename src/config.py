@@ -3,71 +3,104 @@ import numpy as np
 
 
 #### ORDER #####################################################################
-# ORDER_QUANTITY: Demand quantity for the final product [units] -> THIS IS UPDATED EVERY 24 HOURS (Default: 0)
+# ORDER_QUANTITY: order quantity
 # CUST_ORDER_CYCLE: Customer ordering cycle [days]
-# JOB_SIZE : Job size [units]
 
-#### Items #####################################################################
-# ID: Index of the element in the dictionary
-# TYPE: Product, WIP; 교정기, 진행중
-# NAME: Item's name or model;
-# INIT_LEVEL: Initial inventory level [units]
+#### JOB #####################################################################
+# JOB_QUANTITY : Job QUNANTITY / number of patients
+# JOB_SIZE : Number of items in a job
 
-#### Machines #####################################################################
+#### MACHINE #####################################################################
 # ID: Index of the element in the dictionary
-# TYPE: Print, Post-process ; 3D Printer, 후처리 기계
 # NAME: machine's name or model;
 # PRODUCTION_RATE [units/day] 
-# OUTPUT: Output WIP or Product
-# NUM_PRINTERS : number of 3d printers
-# NUM_POST_PROCESSORS : number of post processors
-# INPUT_TYPE_LIST: List of types of input materials or WIPs
-# QNTY_FOR_INPUT_ITEM: Quantity of input materials or WIPs [units]
+# NUM_MACHINES : number of machines
 
-ORDER = {"ORDER_QUANTITY": 5, "CUST_ORDER_CYCLE": 28, "JOB_SIZE": 4}
-
-ITEM = {
-        0: {"ID": 0, "TYPE": "Product", "NAME": "Aligner",
-         "INIT_LEVEL": 0},
-        1: {"ID": 1, "TYPE": "WIP", "NAME": "WIP",
-         "INIT_LEVEL": 0}
-        }
-
-MACHINE = {
-            0: {"ID": 0, "TYPE": "Print", "NAME": "PRINTER-1",
-               "NUM_PRINTERS" : 2,"OUTPUT": ITEM[1], "PRODUCTION_RATE": 24}, #1시간에 24개 - 20분에 8개
-            1: {"ID": 1, "TYPE": "Post-process", "NAME": "Post-processor-1",
-                "PRODUCTION_RATE": 24, "NUM_POST_PROCESSORS" : 5,
-                "INPUT_TYPE_LIST": [ITEM[1]], "QNTY_FOR_INPUT_ITEM": [1], "OUTPUT": ITEM[0]}
-            }
-
-#1시간에 1개 - 2대니까, 1시간에 2개
-
-
-
-# if this is not 0, the length of state space of demand quantity is not identical to INVEN_LEVEL_MAX
-INVEN_LEVEL_MIN = 0
-INVEN_LEVEL_MAX = 600  # Capacity limit of the inventory [units]
 
 # Simulation 기간
 SIM_TIME = 3  # [days] per episode
 
-# Scenario about Demand and leadtime
-ORDER_SCENARIO = {"Dist_Type": "UNIFORM",
-                   "min": 10,
-                   "max": 10}
+ORDER = {"ORDER_QUANTITY": 1, "CUST_ORDER_CYCLE": 28}
 
-def ORDER_QTY_FUNC(scenario):
-    # Uniform distribution
-    if scenario["Dist_Type"] == "UNIFORM":
-        return random.randint(scenario['min'], scenario["max"])
-
-# 모델 리스트 정의
-customer_model_list = [{"Customer ID": customer_id, 
-                        "Model": [{"Product": model_id} for model_id in range(1, ORDER['JOB_SIZE'] + 1)]}
-                        for customer_id in range(1, ORDER['ORDER_QUANTITY'] + 1)]
+JOB = {"JOB_QUANTITY": 5, "JOB_SIZE": 10}
 
 
+MACHINE = {
+            0: {"ID": 0, "NAME": "PRINTER",
+               "NUM_MACHINES" : 2, "PRODUCTION_RATE": 24,
+               },
+
+            1: {"ID": 1, "NAME": "WASHING_MACHINE",
+                "NUM_MACHINES" : 2, "PRODUCTION_RATE": 24},
+            
+            2: {"ID": 2, "NAME": "DRY_MACHINE",
+                "NUM_MACHINES" : 2, "PRODUCTION_RATE": 24},
+            
+            3: {"ID": 3, "NAME": "INSPECT_MACHINE",
+                "NUM_MACHINES" : 2, "PRODUCTION_RATE": 24}
+            }
+
+
+Job_list = [{"Job_id" : num, "Item_id" : [Item_id for Item_id in range(1, JOB['JOB_SIZE'] + 1)]}
+            for num in range (1, JOB['JOB_QUANTITY'] + 1)]
+#{'Job_id': 1, 'Item_id': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+
+
+item_list = [[random.randint(8, 12) for _ in range(JOB['JOB_SIZE'])] for _ in range(JOB['JOB_QUANTITY'])]
+
+class Item :
+    """
+    Item에 대한 정보를 담음
+    """
+    def __init__(self, item_id, value):
+        self.id = item_id
+        self.value = value
+
+    def transform_list(item_list):
+        """랜덤 리스트를 Item 객체 리스트로 변환하고, ID 리스트 반환"""
+        return [[i + 1 for i in range(len(item_list))] for item_list in item_list]
+
+class Job:
+    """
+    Job 리스트를 생성하는 클래스
+    """
+    def __init__(self, job_quantity, item_list):
+        self.job_quantity = job_quantity
+        self.item_list = item_list
+        self.job_list = self.create_job_list()
+
+    def create_job_list(self):
+        """Item 클래스를 활용해 변환된 리스트를 받아 Job 리스트 생성"""
+        transformed_item_list = Item.transform_list(self.item_list)
+        return [{"Job_id": job_id + 1, "Item_id": item_list} for job_id, item_list in enumerate(transformed_item_list)]
+
+    def get_jobs(self):
+        """생성된 Job 리스트 반환"""
+        return self.job_list
+
+# Job 객체 생성 및 Job 리스트 출력
+job = Job(JOB['JOB_QUANTITY'], item_list)
+print(job.get_jobs())
+        
+
+"""
+item 리스트를 먼저 만들어!! 원래 시뮬레이션 성격상 리스트에 교정기 모델을 넣을거 아녀.
+그러면, 여기서 item리스트에 랜덤으로 사이즈를 지정해서 item 리스트를 job갯수만큼 생성
+ex.itme_list = (10, 9 ,8, 11, 10, 12, 7, 9, 10...)(랜덤 사이즈), (11,8,9,10,...) (...) ... (N개)
+config에선 우선 이렇게만 지정해.
+그리고 env에서 class item에서, 해당 리스트를 숫자,id로 메겨. item_id_list = (1,2,3,4,5,6,7,8,9,10) (1,2,3,4...,10), ... , (N개)
+그리고 class job에서 job list를 다시 만들어.
+{'Job_id': 1, 'Item_id': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]} , ... , N개
+그리고 모든 job은 order1에게 지정한다.
+
+시뮬레이션 작동 흐름
+order를 생성하였다면, customer는 해당 order를 주문하게 된다. >> production planning으로 order를 넘김
+production planning은 그러면 해당 order를 job으로 세분화해서 대기열에 세운다.
+job 단위로 proc_build에게 넘긴다.
+proc_build는 job 단위로 생산을 시작하고, 생산이 끝나면, 후처리 기계들로 넘긴다.
+후처리 기계들(wash,dry,inspect)는 item 단위로 생산을 한다. so, job으로 받은 것들을 item단위로 쪼개고, job안의 item 갯수만큼 생산이 마치게 되면 job단위로 또 후처리를 넘기는 방식으로 반복
+후처리 기계들이 job단위로 생산을 마칠때마다 최종 결과물 리스트 안에 저장해놓기.
+"""
 gantt_data = []
 
 
