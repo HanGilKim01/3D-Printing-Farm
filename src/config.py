@@ -41,48 +41,12 @@ MACHINE = {
             }
 
 
-#Job_list = [{"Job_id" : num, "Item_id" : [Item_id for Item_id in range(1, JOB['JOB_SIZE'] + 1)]}
-#            for num in range (1, JOB['JOB_QUANTITY'] + 1)]
-#{'Job_id': 1, 'Item_id': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}
+
 
 
 item_list = [[random.randint(8, 12) for _ in range(JOB['JOB_SIZE'])] for _ in range(JOB['JOB_QUANTITY'])]
+#시뮬레이션 속성으로, 보통통
 
-class Item :
-    """
-    Item에 대한 정보를 담음
-    """
-    def __init__(self, item_id, value):
-        self.id = item_id
-        self.value = value
-
-    def transform_list(item_list):
-        """랜덤 리스트를 Item 객체 리스트로 변환하고, ID 리스트 반환"""
-        return [[i + 1 for i in range(len(item_list))] for item_list in item_list]
-
-class Job:
-    """
-    Job 리스트를 생성하는 클래스
-    """
-    def __init__(self, job_quantity, item_list):
-        self.job_quantity = job_quantity
-        self.item_list = item_list
-        self.job_list = self.create_job_list()
-
-    def create_job_list(self):
-        """Item 클래스를 활용해 변환된 리스트를 받아 Job 리스트 생성"""
-        transformed_item_list = Item.transform_list(self.item_list)
-        return [{"Job_id": job_id + 1, "Item_id": item_list} for job_id, item_list in enumerate(transformed_item_list)]
-
-    def get_jobs(self):
-        """생성된 Job 리스트 반환"""
-        return self.job_list
-
-# Job 객체 생성 및 Job 리스트 출력
-job = Job(JOB['JOB_QUANTITY'], item_list)
-
-
-print(job.get_jobs())
         
 
 """
@@ -113,9 +77,9 @@ production planning은 그러면 해당 order를 job으로 세분화해서 대�
 
 job 단위로 proc_build에게 넘긴다.
 
-proc_build는 job 단위로 생산을 시작하고, 생산이 끝나면, 후처리 기계들로 넘긴다.
+proc_build,wash,dry는 job 단위로 생산을 시작하고, 생산이 끝나면, 후처리 기계들로 넘긴다.
 
-후처리 기계들(wash,dry,inspect)는 item 단위로 생산을 한다. so, job으로 받은 것들을 item단위로 쪼개고, job안의 item 갯수만큼 생산이 마치게 되면 job단위로 또 후처리를 넘기는 방식으로 반복
+후처리 기계들(postprocess,inspect)는 item 단위로 생산을 한다. so, job으로 받은 것들을 item단위로 쪼개고, job안의 item 갯수만큼 생산이 마치게 되면 job단위로 또 후처리를 넘기는 방식으로 반복
 
 후처리 기계들이 job단위로 생산을 마칠때마다 최종 결과물 리스트 안에 저장해놓기.
 """
