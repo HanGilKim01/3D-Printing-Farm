@@ -12,11 +12,11 @@ class Item :
     """
     config에서 생성된 item_list의 item들을 id로 배정하는 클래스
     """
-    def __init__(self, item_id, value):
-        self.id = item_id
-        self.value = value
+    def __init__(self, env):
+        self.env= env
+        
 
-    def transform_list(item_list):
+    def transform_list(self):
         """랜덤 리스트를 Item 객체 리스트로 변환하고, ID 리스트 반환"""
         return [[i + 1 for i in range(len(item_list))] for item_list in item_list]
 

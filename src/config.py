@@ -47,8 +47,37 @@ MACHINE = {
 item_list = [[random.randint(8, 12) for _ in range(JOB['JOB_SIZE'])] for _ in range(JOB['JOB_QUANTITY'])]
 #시뮬레이션 속성으로, 보통통
 
-        
 
+class Customer:
+    """
+    고객 클래스:
+      - 각 고객은 고유한 customer_id와 
+      - JOB_SIZE 개의 랜덤 아이템(8~12 사이 정수)으로 구성된 job 리스트를 가집니다.
+    """
+    def __init__(self, customer_id):
+        self.customer_id = customer_id
+        # 각 고객마다 JOB_SIZE 개의 랜덤 아이템 생성 (8~12 사이 정수)
+        self.job_list = [random.randint(8, 12) for _ in range(JOB['JOB_SIZE'])]
+        
+    def __str__(self):
+        return f"Customer {self.customer_id}: {self.job_list}"
+    
+    def create_customers(self, num_customers=JOB['JOB_QUANTITY']):
+        """
+        인스턴스 메서드로, 주어진 고객 수(num_customers) 만큼 Customer 인스턴스를 생성하여 리스트로 반환합니다.
+        이 메서드는 인스턴스에 종속적이므로, 먼저 인스턴스를 생성한 후에 호출해야 합니다.
+        """
+        # self.num_customers 대신 num_customers 매개변수를 사용합니다.
+        return [Customer(customer_id=i + 1) for i in range(num_customers)]
+
+# 사용 예시:
+# dummy 인스턴스를 생성한 후, 이를 통해 고객 리스트를 생성합니다.
+dummy_customer = Customer(0)  # customer_id는 dummy용으로 0을 사용
+customers = dummy_customer.create_customers()  # JOB_QUANTITY 값(5)을 기본값으로 사용
+
+print("생성된 고객 목록:")
+for customer in customers:
+    print(customer)
 """
 item 리스트를 먼저 만들어!! 원래 시뮬레이션 성격상 리스트에 교정기 모델을 넣을거 아녀.
 order = Order()
