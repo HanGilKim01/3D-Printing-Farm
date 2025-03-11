@@ -63,6 +63,7 @@ for job in ITEM_LOG:
 
 
 '''
+
 # DAILY_REPORTS 데이터를 DataFrame으로 변환 및 CSV 파일로 저장
 print(DAILY_REPORTS)
 export_Daily_Report = []
@@ -100,3 +101,4 @@ daily_reports.to_csv("./Daily_Report.csv", index=False)
 if VISUALIZATION != False:
     visualization.visualization(export_Daily_Report)
 '''
+
