@@ -7,6 +7,38 @@ import environment as env
 import random
 
 
+class Customer:
+    def __init__(self):
+        self.job_list = []
+        self.create_jobs()
+
+    def create_jobs(self):
+        # job_list를 JOB_QUANTITY 만큼의 job으로 구성
+        self.job_list = []  # 기존 리스트 초기화
+        for _ in range(JOB['JOB_QUANTITY']):
+            job = [random.randint(8, 12) for _ in range(JOB['JOB_SIZE'])]
+            self.job_list.append(job)
+
+
+
+class Order:
+    # 생성된 order를 카운트하는 클래스 변수
+    
+
+    def __init__(self, job_list):
+        self.order_number = 0
+        self.job_list = job_list
+
+    def order_count(self):
+        self.order_number += 1
+        return f"Order{self.order_number}: {self.job_list}"
+
+
+customer = Customer()
+order = Order()
+print(order)
+
+
 
 class Item :
     """

@@ -42,9 +42,6 @@ MACHINE = {
 
 
 
-
-import random
-
 class Customer:
     def __init__(self):
         self.job_list = []
