@@ -9,29 +9,20 @@ import time
 # Job 클래스: 전문 job(작업)의 속성을 정의
 class Job:
     """
-    Job 클래스
-    ----------------
-    전문 job(작업)의 속성을 정의하는 클래스
-    각 Job은 여러 Item을 포함할 수 있으며, 생성 시점, 제작 시간(job_build_time), 그리고 워싱 시간(pallet_washing_time) 등을 설정
+    job 속성 정의 클래스
+    각 Job은 Item을 포함
     """
     def __init__(self, job_id, items, create_time):
         """
-        __init__ 메서드 (생성자)
-        -------------------------
-        self.job_id: Job의 고유 식별자(ID)입니다.
-        self.items: 이 Job에 포함될 Item(구 Job)들의 리스트로, 초기에는 빈 리스트로 시작
-        self.create_time: Job이 생성된 시점을 기록합니다.
-        self.job_build_time: Job의 인쇄(제작) 시간으로, 현재 고정값 1로 설정
-        self.pallet_washing_time: Job의 세척(워싱) 시간으로, JOB_TYPES["DEFAULT"]["WASHING_RANGE"] 내의 무작위 정수로 결정
-        
-        매개변수:
-            job_id: 생성될 Job의 ID
-            items: Job에 포함될 Item 리스트 (초기에는 빈 리스트)
-            create_time: Job이 생성된 시각 (SimPy 시간)
+        self.job_id: Job ID
+        self.items: Job에 포함될 Item 리스트 / 초기값 = []
+        self.create_time: Job 생성 시점
+        self.build_time: Job 인쇄 시간
+        self.washing_time: Job 세척 시간
         """
         self.job_id = job_id
-        self.items = items  # 전문 job에 포함된 Item(구 Job) 리스트 (초기에는 빈 리스트)
-        self.create_time = create_time  # 전문 job 생성 시점
+        self.items = items
+        self.create_time = create_time 
         self.build_time = None       
         self.washing_time = None     
         self.drying_time = None      
@@ -41,48 +32,36 @@ class Job:
 # Customer 클래스: 지속적으로 전문 job(작업)을 생성
 class Customer:
     """
-    Customer 클래스
-    ----------------
-    지속적으로 전문 job(작업)을 생성하는 역할을 담당
-    고객은 정해진 간격으로 Job을 생성하고, 각 Job에 대해 여러 Item을 추가하며,
-    조건에 따라 생성된 Job들을 임시 리스트에 저장 후 일정 수가 쌓이면 printer_store에 전달
+    job 생성 클래스
+    일정 간격으로 Job을 생성하고, Item을 추가
+    Job들을 printer_store에 전달
     """
     def __init__(self, env, daily_events,  printer_store):
         """
-        __init__ 메서드 (생성자)
-        -------------------------
-        self.env: SimPy 환경 객체로, 시뮬레이션의 시간 흐름을 관리합니다.
-        self.daily_events: 일별 이벤트 로그 리스트로, Job 생성 및 처리 관련 이벤트를 기록
-        self.current_item_id: 새 Item(구 Job)의 고유 ID를 생성하기 위한 카운터 (초기값 0)
-        self.current_job_id: 새 전문 job(구 Order)의 고유 ID를 생성하기 위한 카운터 (초기값 0)
-        self.unit_shortage_cost: Item 할당 실패 시 발생하는 부족 비용 단위
-        self.printer_store: 생성된 Job들을 저장할 SimPy Store 객체
-        self.temp_job_list: 생성된 Job들을 임시로 저장하는 리스트로, 일정 개수가 누적되면 printer_store에 전달
-        
-        매개변수:
-            env: SimPy 환경 객체  
-            daily_events: 일별 이벤트 로그 리스트
-            printer_store: Job들을 저장할 SimPy Store 객체
+        self.env: SimPy 환경
+        self.daily_events: 일별 이벤트 로그 리스트
+        self.current_item_id: Item ID(초기값 1)
+        self.current_job_id: job ID(초기값 1)
+        self.printer_store: Job 저장 SimPy Store 객체
+        self.temp_job_list: Job 임시저장 리스트, 일정 개수가 누적 후 printer_store에 전달
+        self.interval = job 생성 간격
         """
         self.env = env
         self.daily_events = daily_events
-        self.current_item_id = 1   # 새 Item(구 Job) ID 생성에 사용
-        self.current_job_id = 1    # 새 전문 job(구 Order) ID 생성에 사용
+        self.current_item_id = 1
+        self.current_job_id = 1
         self.printer_store = printer_store
-        self.temp_job_list = []  # 누적된 전문 job들을 임시로 저장
+        self.temp_job_list = [] 
+        self.interval = JOB_CREATION_INTERVAL
 
     def create_jobs_continuously(self):
         """
-        create_jobs_continuously 메서드
-        -----------------------------------
-        시뮬레이션 기간(SIM_TIME * 24 시간) 동안 지속적으로 Job(작업)을 생성하는 프로세스
-        
-        동작:
-            - 현재 시뮬레이션 시간이 종료시간에 도달할 때까지 무한 루프를 수행
-            - 각 Job 생성 시, 현재 시간을 기반으로 일(day)을 계산하고, Job 생성 이벤트를 daily_events에 기록
-            - 각 Job 내부에 CUSTOMER["ITEM_SIZE"] 만큼의 Item을 생성하고, 각 Item에 대해 사이즈 조건을 확인하여 적절히 할당하거나 부족 상황을 기록
-            - 생성된 Job은 임시 리스트(temp_job_list)에 저장되며, 리스트 크기가 CUSTOMER["JOB_LIST_SIZE"]에 도달하면 printer_store에 일괄 전달한 후 리스트를 초기화
-            - 각 Job 생성 후 일정 간격(interval, 여기서는 5시간) 동안 대기
+        Job 생성 프로세스
+
+        - Job 생성 -> 현재 시간을 기반으로 일(day)을 계산하고, daily_events에 기록
+        - CUSTOMER["ITEM_SIZE"]만큼 Item 생성하고, 각 Item에 대해 사이즈 조건을 확인하여 적절히 할당하거나 부족 상황을 기록
+        - 생성 Job은 임시 리스트(temp_job_list)에 저장, 리스트 크기가 CUSTOMER["JOB_LIST_SIZE"]에 도달하면 printer_store에 일괄 전달한 후 리스트를 초기화
+        - 일정 간격(interval) 동안 대기
         """
         while True:
             if self.env.now >= SIM_TIME * 24:
@@ -107,25 +86,20 @@ class Customer:
                     'day': day,
                     'job_id': new_job.job_id,   # 전문 job의 ID
                     'item_id': item.item_id,      # 생성된 Item의 ID
-                    'width': item.width,
-                    'height': item.height,
-                    'depth': item.depth,
                     'create_time': item.create_time,
-                    'volume': item.volume,
+                    'size': item.size,
                     'build_time': item.build_time,
                     'post_processing_time': item.post_processing_time,
                     'packaging_time': item.packaging_time
                 })
 
                 # 생성된 Item이 프린터 크기 조건에 부합하면 Job에 추가, 아니면 부족 처리
-                if (item.width <= PRINTERS_SIZE["WIDTH"] and
-                    item.height <= PRINTERS_SIZE["HEIGHT"] and
-                    item.depth <= PRINTERS_SIZE["DEPTH"]):
+                if (item.size <= PRINTERS_SIZE["Size_range"] ):
                     new_job.items.append(item)
                 
                 else:
-                    self.daily_events.append(f"Item {item.item_id} could not be assigned: No suitable printer available (Item size: {item.volume:.2f})")
-                    item.shortage = 1
+                    self.daily_events.append(f"Item {item.item_id} could not be assigned: No suitable printer available (Item size: {item.size:.2f})")
+                    
                     
             
             # 생성된 전문 job을 임시 리스트에 추가
@@ -140,33 +114,32 @@ class Customer:
                     self.printer_store.put(job_obj)
                 self.temp_job_list.clear()
 
-            interval = 5
+            interval = self.interval
             yield self.env.timeout(interval)
 
-# Printer 클래스: 프린터의 작업 처리
+
 class Proc_Printer:
     """
-    프린터 작업 처리 클래스
-    전문 job을 받아서 세 단계(자원 할당/세팅 → 인쇄 → 마무리)로 처리한 후,
-    워싱 머신으로 전달하는 역할.
+    프린터 작업 클래스
+    customer에게서 job을 printer_store로 받아서 처리
+    작업이 끝나면 washing_store로 넘김
     """
     def __init__(self, env, daily_events, printer_id, washing_machine, printer_store, washing_store):
         """
-        생성자 (__init__)
-        env: SimPy 환경 객체 (시뮬레이션 시간 및 이벤트 관리)
-        daily_events: 일별 이벤트 로그 리스트 (이벤트 기록용)
-        printer_id: 프린터의 고유 식별자
+        env: SimPy 환경 객체
+        daily_events: 일별 이벤트 로그 리스트
+        printer_id: 프린터의 고유 id
         washing_machine: 인쇄 완료 후 job을 전달할 워싱 머신 객체
         printer_store: printer클래스에서 job을 받는 SimPy Store 객체
-        washing_store: washing클래스에서 job을 받는 SimPy Store 객체체
+        washing_store: washing클래스에서 job을 받는 SimPy Store 객체
         """
-        self.env = env                          # SimPy 환경, 시간 관리
-        self.daily_events = daily_events        # 이벤트 로그 저장 리스트
-        self.printer_id = printer_id            # 프린터 식별자
-        self.is_busy = False                    # 프린터 사용 상태 (초기: 미사용)
-        self.washing_machine = washing_machine  # 워싱 머신 객체 (인쇄 후 job 전달용)
-        self.printer_store = printer_store      # printer job 저장 store
-        self.washing_store = washing_store      # washing job 저장 store
+        self.env = env                          
+        self.daily_events = daily_events       
+        self.printer_id = printer_id            
+        self.is_busy = False                   
+        self.washing_machine = washing_machine  
+        self.printer_store = printer_store      
+        self.washing_store = washing_store      
 
 
     def seize(self):
@@ -251,6 +224,69 @@ class Proc_Printer:
         )
         self.washing_store.put(job)
 
+
+# Job 클래스: Job의 속성을 정의
+class Item:
+    def __init__(self, env, item_id, config, job_id=None):
+        self.env = env
+        self.item_id = item_id
+        self.job_id = job_id
+        self.create_time = env.now
+        self.size = np.random.randint(*config["Size_range"])
+        
+        # 각 단계별 처리 시간 (빌드, 후처리)
+        self.build_time = None      
+        self.post_processing_time = None
+        self.packaging_time = None  
+
+        
+
+
+# 환경 생성 함수 (create_env)
+def create_env(daily_events):
+
+    simpy_env = simpy.Environment()
+
+    # 주문(order)을 위한 store (배치 단위로 들어갈 예정)
+    printer_store = simpy.Store(simpy_env)
+    washing_store = simpy.Store(simpy_env)
+    drying_store = simpy.Store(simpy_env)
+    
+    # Satisfication, Packaging, PostProcessing, Drying, Washing, Customer, Display 생성
+    
+    packaging = Proc_Packaging(simpy_env, daily_events)
+    post_processor = Proc_PostProcessing(simpy_env, daily_events, packaging)
+    dry_machine = Proc_Drying(simpy_env, daily_events, post_processor, drying_store)
+    washing_machine = Proc_Washing(simpy_env, daily_events, dry_machine, washing_store, drying_store)
+    customer = Customer(simpy_env, daily_events, printer_store)
+    
+    # Printer 생성 시 order_store와 washing_machine (즉, Washing.assign_order 호출) 전달
+    printers = [
+        Proc_Printer(simpy_env, daily_events, pid, washing_machine, printer_store, washing_store)
+        for pid in PRINTERS.keys()
+    ]
+
+    return simpy_env, packaging, dry_machine, washing_machine, post_processor, customer, printers, daily_events
+
+
+# SimPy 이벤트 프로세스를 설정하는 함수 (simpy_event_processes)
+def simpy_event_processes(simpy_env, packaging, post_processor, customer, printers, daily_events):
+    """
+    시뮬레이션의 주요 프로세스를 스케줄링
+    
+    - customer.create_orders_continuously(): 지속적으로 주문(Order)을 생성합니다.
+    """
+    
+    # Customer가 지속적으로 주문을 생성하는 프로세스 실행
+    simpy_env.process(customer.create_jobs_continuously())
+
+    # 각 Printer의 주문 처리 프로세스 실행
+    for printer in printers:
+        simpy_env.process(printer.seize())
+
+
+
+'''
 class Proc_Washing:
     """
     워싱(세척) 작업 처리 클래스
@@ -615,70 +651,4 @@ class Proc_Packaging:
             self.workers[worker_id]["is_busy"] = True
             self.env.process(self.process_job(next_job, worker_id))
 
-
-# Job 클래스: Job의 속성을 정의
-class Item:
-    def __init__(self, env, item_id, config, job_id=None):
-        self.env = env
-        self.item_id = item_id
-        self.job_id = job_id
-        self.create_time = env.now
-        self.height = np.random.randint(*config["HEIGHT_RANGE"])
-        self.width = np.random.randint(*config["WIDTH_RANGE"])
-        self.depth = np.random.randint(*config["DEPTH_RANGE"])
-        self.volume = self.height * self.width * self.depth
-        
-        # 각 단계별 처리 시간 (빌드, 후처리)
-        self.build_time = None      
-        self.post_processing_time = None
-        self.packaging_time = None  
-        
-        # 기타 속성 (예: 비용, due date 등 필요시 추가)
-        self.due_date = None
-        
-
-
-# 환경 생성 함수 (create_env)
-def create_env(daily_events):
-    simpy_env = simpy.Environment()
-
-    # 주문(order)을 위한 store (배치 단위로 들어갈 예정)
-    printer_store = simpy.Store(simpy_env)
-    washing_store = simpy.Store(simpy_env)
-    drying_store = simpy.Store(simpy_env)
-    
-    # Satisfication, Packaging, PostProcessing, Drying, Washing, Customer, Display 생성
-    
-    packaging = Proc_Packaging(simpy_env, daily_events)
-    post_processor = Proc_PostProcessing(simpy_env, daily_events, packaging)
-    dry_machine = Proc_Drying(simpy_env, daily_events, post_processor, drying_store)
-    washing_machine = Proc_Washing(simpy_env, daily_events, dry_machine, washing_store, drying_store)
-    customer = Customer(simpy_env, daily_events, printer_store)
-    
-    # Printer 생성 시 order_store와 washing_machine (즉, Washing.assign_order 호출) 전달
-    printers = [
-        Proc_Printer(simpy_env, daily_events, pid, washing_machine, printer_store, washing_store)
-        for pid in PRINTERS.keys()
-    ]
-
-    return simpy_env, packaging, dry_machine, washing_machine, post_processor, customer, printers, daily_events
-
-
-# SimPy 이벤트 프로세스를 설정하는 함수 (simpy_event_processes)
-def simpy_event_processes(simpy_env, packaging, post_processor, customer, printers, daily_events):
-    """
-    시뮬레이션의 주요 프로세스를 스케줄링합니다.
-    
-    - display.track_days(): 매일의 보고서를 기록합니다.
-    - customer.create_orders_continuously(): 지속적으로 주문(Order)을 생성합니다.
-    - 각 Printer의 process_orders(): order_store에 들어온 주문을 인쇄(Printing) 처리합니다.
-    
-    Drying 단계에서 PostProcessing, 그리고 PostProcessing에서 Packaging으로 order가 자동 전달됩니다.
-    """
-    
-    # Customer가 지속적으로 주문을 생성하는 프로세스 실행
-    simpy_env.process(customer.create_jobs_continuously())
-
-    # 각 Printer의 주문 처리 프로세스 실행
-    for printer in printers:
-        simpy_env.process(printer.seize())
+'''
