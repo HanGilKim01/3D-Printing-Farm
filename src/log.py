@@ -1,8 +1,3 @@
-# Log simulation events
-LOG_DAILY_EVENTS = []
-
-LOG_DAILY_REPORTS = []
-LOG_STATE_DICT = []
-JOB_LOG = []
-
-GRAPH_LOG = {}
+DAILY_EVENTS = []
+DAILY_REPORTS = []
+ITEM_LOG = []
