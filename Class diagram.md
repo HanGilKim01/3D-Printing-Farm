@@ -6,9 +6,9 @@ classDiagram
       - daily_events: list
       - current_item_id : int
       - current_job_id : int
-      - printer_store : Store
+      - printer_queue : queue
       - temp_job_list: list
-      + create_jobs_continuously()
+      + create_jobs()
     }
 
     class Job {
@@ -34,8 +34,8 @@ classDiagram
       - daily_events: list
       - printer_id : int
       - is_busy: bool
-      - printer_store : Store
-      - washing_store : Store
+      - printer_queue : queue
+      - washing_queue : queue
 
       + seize()
       + delay()
@@ -47,8 +47,8 @@ classDiagram
       - daily_events: list
       - processing_time : int
       - is_busy: bool
-      - washing_store : Store
-      - drying_store : Store
+      - washing_queue : queue
+      - drying_queue : queue
 
       + seize()
       + delay()
@@ -60,8 +60,8 @@ classDiagram
       - daily_events: list
       - processing_time : int
       - is_busy: bool
-      - drying_store : Store
-      - postprocess_store : Store
+      - drying_queue : queue
+      - postprocess_queue : queue
 
       + seize()
       + delay()
@@ -73,8 +73,8 @@ classDiagram
       - daily_events: list
       - processing_time : int
       - is_busy: bool
-      - postprocess_store : Store
-      - package_store : Store
+      - postprocess_queue : queue
+      - package_queue : queue
 
       + seize()
       + delay()
@@ -86,7 +86,7 @@ classDiagram
       - daily_events: list
       - processing_time : int
       - is_busy: bool
-      - package_store : Store
+      - package_queue : queue
       - product_list : list
 
       + seize()

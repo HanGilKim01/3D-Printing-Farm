@@ -10,7 +10,7 @@ sequenceDiagram
 
 
 
-    A->>A: create_job_continuously
+    A->>A: create_job
     note left of A : Job contains item list
     A->>B: transmit job_list
     B->>B: seize / delay / release

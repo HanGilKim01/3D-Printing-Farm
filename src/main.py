@@ -35,7 +35,7 @@ for day in range(SIM_TIME):
 
 # 추가 작업 처리: 아직 처리 중인 주문이나 대기열이 있다면 (예: Customer의 order_store, Washing의 common_queue, Packaging의 queue, Packaging 작업자)
 day = SIM_TIME + 1
-while (customer.printer_store.items or washing_machine.waiting_queue or packaging.queue or 
+while (customer.printer_queue.items or washing_machine.waiting_queue or packaging.queue or 
        any(worker["is_busy"] for worker in packaging.workers.values())):
     simpy_env.run(until=simpy_env.now + 24)
 
