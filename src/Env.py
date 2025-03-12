@@ -124,20 +124,18 @@ class Proc_Printer:
     customer에게서 job을 printer_queue로 받아서 처리
     작업이 끝나면 washing_queue로 넘김
     """
-    def __init__(self, env, daily_events, printer_id, washing_machine, printer_queue, washing_queue):
+    def __init__(self, env, daily_events, printer_id, printer_queue, washing_queue):
         """
         env: SimPy 환경 객체
         daily_events: 일별 이벤트 로그 리스트
         printer_id: 프린터 id
-        washing_machine: 인쇄 완료 후 job을 전달할 워싱 머신
         printer_queue: printer클래스 queue 
         washing_queue: washing클래스 queue
         """
         self.env = env                          
         self.daily_events = daily_events       
         self.printer_id = printer_id            
-        self.is_busy = False                   
-        self.washing_machine = washing_machine  
+        self.is_busy = False                     
         self.printer_queue = []      
         self.washing_queue = washing_queue      
 
@@ -173,14 +171,7 @@ class Proc_Printer:
         """
         self.is_busy = True  # 주문 처리 시작
         
-        # Set-up 단계
-        set_up_start = self.env.now
-        self.daily_events.append(
-            f"{int(self.env.now % 24)}:{int((self.env.now % 1) * 60):02d} - Job {job.job_id} is starting setup on Printer {self.printer_id}."
-        )
-        
-        set_up_end = self.env.now
-        
+
         # Build 단계 (계산된 build_time 만큼 대기)
         start_time = self.env.now
         self.daily_events.append(
@@ -202,8 +193,6 @@ class Proc_Printer:
         DAILY_REPORTS.append({
             'order_id': job.job_id,  # job_id로 표기
             'printer_id': self.printer_id,
-            'set_up_start': set_up_start,
-            'set_up_end': set_up_end,
             'start_time': start_time,
             'end_time': end_time,
             'closing_start': closing_start,
