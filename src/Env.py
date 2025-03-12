@@ -39,19 +39,19 @@ class Customer:
         """
         self.env: SimPy 환경
         self.daily_events: 일별 이벤트 로그 리스트
-        self.current_item_id: Item ID(초기값 1)
-        self.current_job_id: job ID(초기값 1)
+        self.item_id: Item ID(초기값 1)
+        self.job_id: job ID(초기값 1)
         self.printer_queue: Job 저장 SimPy queue 객체
         self.temp_job_list: Job 임시저장 리스트, 일정 개수가 누적 후 printer_store에 전달
         self.interval = job 생성 간격
         """
         self.env = env
         self.daily_events = daily_events
-        self.current_item_id = 1
-        self.current_job_id = 1
+        self.item_id = 1
+        self.job_id = 1
         self.printer_queue = printer_queue
         self.temp_job_list = [] 
-        self.interval = JOB_CREATION_INTERVAL
+        self.interval = CUSTOMER["INTERVAL"]
 
     def create_jobs(self):
         """
@@ -69,16 +69,16 @@ class Customer:
             day = int(self.env.now // 24) + 1
 
             # 고객이 전문 job 객체 생성 (빈 Item 리스트와 함께)
-            new_job = Job(self.current_job_id, [], self.env.now)
-            self.current_job_id += 1
+            new_job = Job(self.job_id, [], self.env.now)
+            self.job_id += 1
             self.daily_events.append(
                 f"{int(self.env.now % 24)}:{int((self.env.now % 1)*60):02d} - Job {new_job.job_id} created at time {new_job.create_time:.2f}."
             )
 
             # 전문 job 내부에서 CUSTOMER["ITEM_SIZE"]만큼 Item 생성 후 추가
             for _ in range(CUSTOMER["ITEM_SIZE"]):
-                item = Item(self.env, self.current_item_id, JOB_TYPES["DEFAULT"], job_id=new_job.job_id)
-                self.current_item_id += 1
+                item = Item(self.env, self.item_id, JOB_TYPES["DEFAULT"], job_id=new_job.job_id)
+                self.item_id += 1
 
                 # JOB_LOG (이제 ITEM_LOG) 기록: 부모 전문 job의 ID와 생성된 Item의 ID 기록
                 ITEM_LOG.append({
@@ -86,18 +86,18 @@ class Customer:
                     'job_id': new_job.job_id,   # 전문 job의 ID
                     'item_id': item.item_id,      # 생성된 Item의 ID
                     'create_time': item.create_time,
-                    'size': item.size,
+                    'volume': item.volume,
                     'build_time': item.build_time,
                     'post_processing_time': item.post_processing_time,
                     'packaging_time': item.packaging_time
                 })
 
                 # 생성된 Item이 프린터 크기 조건에 부합하면 Job에 추가, 아니면 부족 처리
-                if (item.size <= PRINTERS_SIZE["Size_range"] ):
+                if (item.volume <= PRINTERS_SIZE["Volume_range"] ):
                     new_job.items.append(item)
                 
                 else:
-                    self.daily_events.append(f"Item {item.item_id} could not be assigned: No suitable printer available (Item size: {item.size:.2f})")
+                    self.daily_events.append(f"Item {item.item_id} could not be assigned: No suitable printer available (Item volume: {item.volume:.2f})")
                     
                     
             
@@ -113,8 +113,8 @@ class Customer:
                     self.printer_queue.put(job_obj)
                 self.temp_job_list.clear()
 
-            interval = self.interval
-            yield self.env.timeout(interval)
+            
+            yield self.env.timeout(self.interval)
 
 
 class Proc_Printer:
@@ -231,7 +231,7 @@ class Item:
         self.item_id = item_id
         self.job_id = job_id
         self.create_time = env.now
-        self.size = np.random.randint(*config["Size_range"])
+        self.volume = np.random.randint(*config["Volume_range"])
         
         # 각 단계별 처리 시간 (빌드, 후처리)
         self.build_time = None      

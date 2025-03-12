@@ -3,11 +3,12 @@ import random
 
 
 #### Job ##########################################################
-# Size_range : item의 각 size 범위
+# Volume_range : item의 각 volume 범위
 
 #### Customer ##########################################################
 # JOB_LIST_SIZE : job 갯수
-# ITEM_SIZE : item 갯수수
+# ITEM_SIZE : item 갯수
+# INTERVAL : job 생성 간격
 
 #### Post_Processor ########################################################
 # POST_PROCESSING_WORKER: 작업자 정보 설정, 각 작업자의 ID를 포함
@@ -20,59 +21,22 @@ import random
 # 시뮬레이션 설정
 SIM_TIME = 1  # 시뮬레이션 기간 (일 단위)
 
-# Job 생성 파라미터 설정
-JOB_CREATION_INTERVAL = 5  # 평균 1시간 간격으로 Job 생성
-
-
 # Job의 속성 정의
 JOB_TYPES = {
     "DEFAULT": {
-        "Size_range": (10, 20), # 단위: mm     
+        "Volume_range": (10, 20), # 단위: mm     
     }
 }
 
 
-CUSTOMER = {
-    "JOB_LIST_SIZE": 2,
-     "ITEM_SIZE": 2
-     }
+CUSTOMER = {"JOB_LIST_SIZE": 2, "ITEM_SIZE": 2, "INTERVAL": 5}
 
 # 3D 프린터 정보 설정, VOL: WIDTH * HEIGHT * DEPTH / 단위: mm
-PRINTERS = {
-    0: {"ID": 0}, 
-    1: {"ID": 1},
-    2: {"ID": 2},
-    3: {"ID": 3},
-    4: {"ID": 4}
-}
+PRINTERS = {0: {"ID": 0}, 1: {"ID": 1}}
 
 # unit: mm
-PRINTERS_SIZE = {"Size_range": 100, "SET_UP": 10, "CLOSING": 30}
+PRINTERS_SIZE = {"Volume_range": 100, "SET_UP": 10, "CLOSING": 30}
 
-WASHING_MACHINE = {
-    0: {"ID": 0, "WASHING_SIZE": 2},
-    1: {"ID": 1, "WASHING_SIZE": 2}
-}
-
-DRY_MACHINE = {
-    0: {"ID": 0, "DRYING_SIZE": 3},
-    1: {"ID": 1, "DRYING_SIZE": 3}
-}
-
-POST_PROCESSING_WORKER = {
-    0: {"ID": 0},
-    1: {"ID": 1},
-    2: {"ID": 2},
-    3: {"ID": 3},
-    4: {"ID": 4},
-    5: {"ID": 5}
-}
-
-PACKAGING_MACHINE = {
-    0: {"ID": 0},
-    1: {"ID": 1},
-    2: {"ID": 2}
-}
 
 
 PRINT_SATISFICATION = True

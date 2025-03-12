@@ -4,16 +4,17 @@ classDiagram
     class Customer {
       - env: simpy.Environment
       - daily_events: list
-      - current_item_id : int
-      - current_job_id : int
+      - item_id : int
+      - job_id : int
       - printer_queue : queue
       - temp_job_list: list
+      - interval : int
       + create_jobs()
     }
 
     class Job {
       - job_id: int
-      - items: list~Item~
+      - items: list
       - build_time : int
       - washing_time : int
       - drying_time : int
@@ -23,7 +24,7 @@ classDiagram
       - env: simpy.Environment
       - item_id: int
       - job_id: int
-      - size: int
+      - volume: int
       - post_process_time : int
       - packaging_time : int
     }
