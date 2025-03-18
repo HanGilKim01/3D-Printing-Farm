@@ -118,7 +118,7 @@ class Customer:
             yield self.env.timeout(self.interval)
 
 
-class Proc_Printer:
+class Proc_Build:
     """
     프린터 작업 클래스
     customer에게서 job을 printer_queue로 받아서 처리
