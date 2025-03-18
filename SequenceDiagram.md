@@ -1,7 +1,7 @@
 ```mermaid
 sequenceDiagram
     participant A as Customer 
-    participant B as Proc_Printer
+    participant B as Proc_Build
     participant C as Proc_Washing
     participant D as Proc_Drying
     participant E as Proc_PostProcessing

@@ -28,6 +28,32 @@ class Job:
         self.washing_time = None     
         self.drying_time = None      
 
+class Item:
+    """
+    item 속성 정의 클래스
+    """
+    def __init__(self, env, item_id, config, job_id=None):
+        """
+        self.env: SimPy 환경
+        self.item_id: Item_id
+        self.job_id : Job_id
+        self.create_time: Item 생성 시점
+        self.volume : Item 크기
+        self.post_processing_time: 후처리 시간
+        self.packaging_time: 포장 시간
+        """
+        self.env = env
+        self.item_id = item_id
+        self.job_id = job_id
+        self.create_time = env.now
+        self.volume = np.random.randint(*config["Volume_range"])
+        
+        # 각 단계별 처리 시간 (빌드, 후처리)
+        self.build_time = None      
+        self.post_processing_time = None
+        self.packaging_time = None  
+
+ 
 
 # Customer 클래스: 지속적으로 전문 job(작업)을 생성
 class Customer:
@@ -118,6 +144,147 @@ class Customer:
             yield self.env.timeout(self.interval)
 
 
+      
+class BaseProcess:
+    """
+    프로세스 기본 클래스.
+    seize, delay, release 메서드의 기본 동작을 정의하여
+    build, wash, dry, inspect 등에서 상속받아 사용합니다.
+    """
+    def __init__(self, env, daily_events, process_id, in_queue, out_queue, process_name, default_time=1):
+        """
+        env: SimPy 환경 객체.
+        daily_events: 일별 이벤트 로그 리스트.
+        process_id: 프로세스 id.
+        in_queue: 작업을 받아오는 입력 큐.
+        out_queue: 작업을 전달할 출력 큐.
+        process_name: 프로세스 이름 (예: "Printing", "Washing", "Drying", "Inspection").
+        default_time: job 아이템의 처리 시간이 None일 경우 사용할 기본 처리 시간.
+        """
+        self.env = env
+        self.daily_events = daily_events
+        self.process_id = process_id
+        self.in_queue = in_queue
+        self.out_queue = out_queue
+        self.process_name = process_name
+        self.default_time = default_time
+        self.is_busy = False
+
+    def seize(self):
+        """
+        seize 메서드:
+        입력 큐에서 job을 받아 각 아이템의 처리 시간을 합산하여 job.job_process_time을 계산하고,
+        delay 프로세스를 시작합니다.
+        """
+        while True:
+            job = yield self.in_queue.get()
+
+            # job의 각 item의 처리 시간을 합산 (없으면 default_time 사용)
+            total_process_time = 0
+            for item in job.items:
+                if hasattr(item, 'process_time') and item.process_time is not None:
+                    total_process_time += item.process_time
+                else:
+                    item.process_time = self.default_time
+                    total_process_time += item.process_time
+            job.job_process_time = total_process_time
+
+            yield self.env.process(self.delay(job))
+
+    def delay(self, job):
+        """
+        delay 메서드:
+        job의 총 처리 시간(job.job_process_time)만큼 대기하면서 작업을 수행하고,
+        종료 로그를 남긴 후 release 메서드를 호출합니다.
+        """
+        self.is_busy = True
+
+        start_time = self.env.now
+        self.daily_events.append(
+            f"{int(self.env.now % 24)}:{int((self.env.now % 1)*60):02d} - Job {job.job_id} is {self.process_name} on {self.process_id} for {job.job_process_time} time units."
+        )
+
+        yield self.env.timeout(job.job_process_time)
+        end_time = self.env.now
+
+        # Closing 단계 로그 (필요 시 추가 로직 구현 가능)
+        closing_start = self.env.now
+        self.daily_events.append(
+            f"{int(self.env.now % 24)}:{int((self.env.now % 1)*60):02d} - Job {job.job_id} is finishing {self.process_name} on {self.process_id}."
+        )
+        closing_end = self.env.now
+
+        # (선택사항) 전역 DAILY_REPORTS 업데이트
+        DAILY_REPORTS.append({
+            'order_id': job.job_id,
+            'process_id': self.process_id,
+            'start_time': start_time,
+            'end_time': end_time,
+            'closing_start': closing_start,
+            'closing_end': closing_end,
+            'process': self.process_name
+        })
+
+        self.release(job)
+
+    def release(self, job):
+        """
+        release 메서드:
+        job 처리가 완료된 후 프로세스의 상태를 해제하고,
+        출력 큐로 job을 전달합니다.
+        """
+        self.is_busy = False
+        self.daily_events.append(
+            f"{int(self.env.now % 24)}:{int((self.env.now % 1)*60):02d} - {self.process_name} {self.process_id} is now available."
+        )
+        self.out_queue.put(job)
+
+class Proc_Build(BaseProcess):
+    def __init__(self, env, daily_events, printer_id, printer_queue, washing_queue):
+        super().__init__(env, daily_events, printer_id, printer_queue, washing_queue, process_name="Printing")
+  
+
+
+# 환경 생성 함수 (create_env)
+def create_env(daily_events):
+
+    simpy_env = simpy.Environment()
+
+ 
+    packaging = Proc_Packaging(simpy_env, daily_events)
+    post_processor = Proc_PostProcessing(simpy_env, daily_events, packaging)
+    dry_machine = Proc_Drying(simpy_env, daily_events, post_processor, drying_queue)
+    washing_machine = Proc_Washing(simpy_env, daily_events, dry_machine, washing_queue, drying_queue)
+    customer = Customer(simpy_env, daily_events, printer_queue)
+    
+    # Printer 생성 시 order_store와 washing_machine (즉, Washing.assign_order 호출) 전달
+    printers = [
+        Proc_Printer(simpy_env, daily_events, pid, washing_machine, printer_queue, washing_queue)
+        for pid in PRINTERS.keys()
+    ]
+
+    return simpy_env, packaging, dry_machine, washing_machine, post_processor, customer, printers, daily_events
+
+
+# SimPy 이벤트 프로세스를 설정하는 함수 (simpy_event_processes)
+def simpy_event_processes(simpy_env, packaging, post_processor, customer, printers, daily_events):
+    """
+    시뮬레이션의 주요 프로세스를 스케줄링
+    
+    - customer.create_orders_continuously(): 지속적으로 주문(Order)을 생성합니다.
+    """
+    
+    # Customer가 지속적으로 주문을 생성하는 프로세스 실행
+    simpy_env.process(customer.create_jobs())
+
+    # 각 Printer의 주문 처리 프로세스 실행
+    for printer in printers:
+        simpy_env.process(printer.seize())
+
+
+
+
+'''
 class Proc_Build:
     """
     프린터 작업 클래스
@@ -214,75 +381,7 @@ class Proc_Build:
         self.washing_queue.put(job)
 
 
-# Job 클래스: Job의 속성을 정의
-class Item:
-    """
-    item 속성 정의 클래스
-    """
-    def __init__(self, env, item_id, config, job_id=None):
-        """
-        self.env: SimPy 환경
-        self.item_id: Item_id
-        self.job_id : Job_id
-        self.create_time: Item 생성 시점
-        self.volume : Item 크기
-        self.post_processing_time: 후처리 시간
-        self.packaging_time: 포장 시간
-        """
-        self.env = env
-        self.item_id = item_id
-        self.job_id = job_id
-        self.create_time = env.now
-        self.volume = np.random.randint(*config["Volume_range"])
-        
-        # 각 단계별 처리 시간 (빌드, 후처리)
-        self.build_time = None      
-        self.post_processing_time = None
-        self.packaging_time = None  
 
-        
-
-
-# 환경 생성 함수 (create_env)
-def create_env(daily_events):
-
-    simpy_env = simpy.Environment()
-
- 
-    packaging = Proc_Packaging(simpy_env, daily_events)
-    post_processor = Proc_PostProcessing(simpy_env, daily_events, packaging)
-    dry_machine = Proc_Drying(simpy_env, daily_events, post_processor, drying_queue)
-    washing_machine = Proc_Washing(simpy_env, daily_events, dry_machine, washing_queue, drying_queue)
-    customer = Customer(simpy_env, daily_events, printer_queue)
-    
-    # Printer 생성 시 order_store와 washing_machine (즉, Washing.assign_order 호출) 전달
-    printers = [
-        Proc_Printer(simpy_env, daily_events, pid, washing_machine, printer_queue, washing_queue)
-        for pid in PRINTERS.keys()
-    ]
-
-    return simpy_env, packaging, dry_machine, washing_machine, post_processor, customer, printers, daily_events
-
-
-# SimPy 이벤트 프로세스를 설정하는 함수 (simpy_event_processes)
-def simpy_event_processes(simpy_env, packaging, post_processor, customer, printers, daily_events):
-    """
-    시뮬레이션의 주요 프로세스를 스케줄링
-    
-    - customer.create_orders_continuously(): 지속적으로 주문(Order)을 생성합니다.
-    """
-    
-    # Customer가 지속적으로 주문을 생성하는 프로세스 실행
-    simpy_env.process(customer.create_jobs())
-
-    # 각 Printer의 주문 처리 프로세스 실행
-    for printer in printers:
-        simpy_env.process(printer.seize())
-
-
-
-
-'''
 class Proc_Washing:
     """
     세척 작업 클래스

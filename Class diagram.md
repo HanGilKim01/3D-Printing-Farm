@@ -30,7 +30,7 @@ classDiagram
     }
 
 
-    class Proc_Printer {
+    class Proc_Build {
       + env: simpy.Environment
       + daily_events: list
       + printer_id : int
@@ -95,14 +95,21 @@ classDiagram
       + release(job)
     }
  
-
+    class BaseProcess {
+     
+    }
     
 
     %% 관계 표현
     Customer --> Job : creates
     Job o-- Item : contains
-    Customer --> Proc_Printer : transmit
-    Proc_Printer --> Proc_Washing : sends
+    Customer --> Proc_Build : transmit
+    Proc_Build --> Proc_Washing : sends
     Proc_Washing --> Proc_Drying : sends
     Proc_Drying --> Proc_PostProcessing : sends
     Proc_PostProcessing --> Proc_Packaging : sends
+    BaseProcess --> Proc_Build : inherit
+    BaseProcess --> Proc_Washing : inherit
+    BaseProcess --> Proc_Drying : inherit
+    BaseProcess --> Proc_PostProcessing : inherit
+    BaseProcess --> Proc_Packaging : inherit
