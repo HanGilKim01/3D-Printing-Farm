@@ -15,9 +15,7 @@ classDiagram
     class Job {
       + job_id: int
       + items: list
-      + build_time : int
-      + washing_time : int
-      + drying_time : int
+      + create_time : int
     }
 
     class Item {
@@ -25,8 +23,6 @@ classDiagram
       + item_id: int
       + job_id: int
       + volume: int
-      + post_process_time : int
-      + packaging_time : int
     }
 
 
@@ -34,69 +30,72 @@ classDiagram
       + env: simpy.Environment
       + daily_events: list
       + printer_id : int
-      + is_busy: bool
-      + printer_queue : queue
-      + washing_queue : queue
-
-      + seize()
-      + delay(job)
-      + release(job)
+      + process_id : int
+      + process_name : int
+      + printer_queue : list
+      + washing_queue : list
     }
 
     class Proc_Washing {
       + env: simpy.Environment
       + daily_events: list
       + processing_time : int
-      + is_busy: bool
-      + washing_queue : queue
-      + drying_queue : queue
+      + process_id : int
+      + process_name : int
+      + washing_queue : list
+      + drying_queue : list
 
-      + seize()
-      + delay(job)
-      + release(job)
+
     }
 
     class Proc_Drying {
       + env: simpy.Environment
       + daily_events: list
       + processing_time : int
-      + is_busy: bool
-      + drying_queue : queue
-      + postprocess_queue : queue
+      + process_id : int
+      + process_name : int
+      + drying_queue : list
+      + postprocess_queue : list
 
-      + seize()
-      + delay(job)
-      + release(job)
+
     }
 
     class Proc_PostProcessing {
       + env: simpy.Environment
       + daily_events: list
       + processing_time : int
-      + is_busy: bool
-      + postprocess_queue : queue
-      + package_queue : queue
+      + process_id : int
+      + process_name : int
+      + postprocess_queue : list
+      + package_queue : list
 
-      + seize()
-      + delay(job)
-      + release(job)
+
     }
 
     class Proc_Packaging {
       + env: simpy.Environment
       + daily_events: list
       + processing_time : int
-      + is_busy: bool
-      + package_queue : queue
+      + process_id : int
+      + process_name : int
+      + package_queue : list
       + product_list : list
+
+    }
+ 
+    class BaseProcess {
+      + env : simpy.Environment
+      + daily_events : list
+      + process_id : int
+      + in_queue : list
+      + out_queue : list
+      + process_name : int
+      + process_time : int
+      + is_busy : bool
 
       + seize()
       + delay(job)
       + release(job)
-    }
- 
-    class BaseProcess {
-     
     }
     
 
