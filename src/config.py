@@ -32,7 +32,15 @@ JOB_TYPES = {
 CUSTOMER = {"JOB_LIST_SIZE": 2, "ITEM_SIZE": 2, "INTERVAL": 5}
 
 # 3D 프린터 정보 설정, VOL: WIDTH * HEIGHT * DEPTH / 단위: mm
-PRINTERS = {0: {"ID": 0}, 1: {"ID": 1}}
+PRINTERS = {0: {"ID": 0}, 1: {"ID": 1}, "PROCESS_TIME": 1}
+
+WASHING_MACHINE = {0: {"ID": 0}, 1: {"ID": 1}, "PROCESS_TIME": 1}
+
+DRYING_MACHINE = {0: {"ID": 0}, 1: {"ID": 1}, "PROCESS_TIME": 1}
+
+POST_PROCESSING_MACHINE = {0: {"ID": 0}, 1: {"ID": 1}, "PROCESS_TIME": 1}
+
+PACKAGING_MACHINE = {0: {"ID": 0}, 1: {"ID": 1}, "PROCESS_TIME": 1}
 
 # unit: mm
 PRINTERS_SIZE = {"Volume_range": 100, "SET_UP": 10, "CLOSING": 30}

@@ -12,21 +12,17 @@ class Job:
     job 속성 정의 클래스
     각 Job은 Item을 포함
     """
-    def __init__(self, job_id, items, create_time):
+    def __init__(self, job_id, items, create_time, job_process_time):
         """
         self.job_id: Job ID
         self.items: Job에 포함될 Item 리스트 / 초기값 = []
         self.create_time: Job 생성 시점
-        self.build_time: Job 인쇄 시간
-        self.washing_time: Job 세척 시간
-        self.drying_time: Job 건조조 시간
         """
         self.job_id = job_id
         self.items = items
         self.create_time = create_time 
-        self.build_time = None       
-        self.washing_time = None     
-        self.drying_time = None      
+        self.job_process_time = job_process_time
+        
 
 class Item:
     """
@@ -39,8 +35,6 @@ class Item:
         self.job_id : Job_id
         self.create_time: Item 생성 시점
         self.volume : Item 크기
-        self.post_processing_time: 후처리 시간
-        self.packaging_time: 포장 시간
         """
         self.env = env
         self.item_id = item_id
@@ -48,11 +42,6 @@ class Item:
         self.create_time = env.now
         self.volume = np.random.randint(*config["Volume_range"])
         
-        # 각 단계별 처리 시간 (빌드, 후처리)
-        self.build_time = None      
-        self.post_processing_time = None
-        self.packaging_time = None  
-
  
 
 # Customer 클래스: 지속적으로 전문 job(작업)을 생성
@@ -114,9 +103,6 @@ class Customer:
                     'item_id': item.item_id,      
                     'create_time': item.create_time,
                     'volume': item.volume,
-                    'build_time': item.build_time,
-                    'post_processing_time': item.post_processing_time,
-                    'packaging_time': item.packaging_time
                 })
 
                 
@@ -149,9 +135,9 @@ class BaseProcess:
     """
     프로세스 기본 클래스.
     seize, delay, release 메서드의 기본 동작을 정의하여
-    build, wash, dry, inspect 등에서 상속받아 사용합니다.
+    build, wash, dry 등에서 상속받아 사용합니다.
     """
-    def __init__(self, env, daily_events, process_id, in_queue, out_queue, process_name, default_time=1):
+    def __init__(self, env, daily_events, process_id, process_time, in_queue, out_queue, process_name):
         """
         env: SimPy 환경 객체.
         daily_events: 일별 이벤트 로그 리스트.
@@ -159,7 +145,7 @@ class BaseProcess:
         in_queue: 작업을 받아오는 입력 큐.
         out_queue: 작업을 전달할 출력 큐.
         process_name: 프로세스 이름 (예: "Printing", "Washing", "Drying", "Inspection").
-        default_time: job 아이템의 처리 시간이 None일 경우 사용할 기본 처리 시간.
+        process_time: job 아이템의 처리 시간이 None일 경우 사용할 기본 처리 시간.
         """
         self.env = env
         self.daily_events = daily_events
@@ -167,7 +153,7 @@ class BaseProcess:
         self.in_queue = in_queue
         self.out_queue = out_queue
         self.process_name = process_name
-        self.default_time = default_time
+        self.process_time = process_time
         self.is_busy = False
 
     def seize(self):
@@ -179,14 +165,19 @@ class BaseProcess:
         while True:
             job = yield self.in_queue.get()
 
-            # job의 각 item의 처리 시간을 합산 (없으면 default_time 사용)
+            # 각 item의 build_time 합산하여 job.job_build_time으로 설정 (None이면 기본값 1 사용)
+            
             total_process_time = 0
             for item in job.items:
-                if hasattr(item, 'process_time') and item.process_time is not None:
-                    total_process_time += item.process_time
+                # 만약 item의 build_time이 None이 아니라면 해당 값을 사용합니다.
+                if self.process_time is not None:
+                    total_process_time += self.process_time
+                # build_time이 None이라면 기본값인 1을 더합니다.
                 else:
-                    item.process_time = self.default_time
-                    total_process_time += item.process_time
+                    self.process_time = 1
+                    total_process_time += self.process_time
+
+            # 계산된 총 build_time을 job의 속성으로 할당합니다.
             job.job_process_time = total_process_time
 
             yield self.env.process(self.delay(job))
@@ -240,9 +231,39 @@ class BaseProcess:
         self.out_queue.put(job)
 
 class Proc_Build(BaseProcess):
-    def __init__(self, env, daily_events, printer_id, printer_queue, washing_queue):
-        super().__init__(env, daily_events, printer_id, printer_queue, washing_queue, process_name="Printing")
-  
+    def __init__(self, env, daily_events, machine_id, process_time, printer_queue, washing_queue):
+        
+        
+        super().__init__(env, daily_events, machine_id, process_time, in_queue=printer_queue, out_queue=washing_queue, process_name="Printing")
+        #super().__init__ : 상속받은 클래스 내부에서 부모클래스의 생성자를 호출할 때 사용 문법 >> 부모클래스의 생성자를 호출하여 초기화 작업 수행
+
+class Proc_Washing(BaseProcess):
+    def __init__(self, env, daily_events, machine_id, process_time, washing_queue, drying_queue):
+        
+
+        super().__init__(env, daily_events, machine_id, process_time, in_queue=washing_queue, out_queue=drying_queue, process_name="Printing")
+        #super().__init__ : 상속받은 클래스 내부에서 부모클래스의 생성자를 호출할 때 사용 문법 >> 부모클래스의 생성자를 호출하여 초기화 작업 수행
+
+class Proc_Drying(BaseProcess):
+    def __init__(self, env, daily_events, machine_id, process_time, drying_queue, post_processing_queue):
+        
+
+        super().__init__(env, daily_events, machine_id, process_time,in_queue=drying_queue, out_queue=post_processing_queue, process_name="Printing")
+        #super().__init__ : 상속받은 클래스 내부에서 부모클래스의 생성자를 호출할 때 사용 문법 >> 부모클래스의 생성자를 호출하여 초기화 작업 수행
+
+class Proc_PostProcessing(BaseProcess):
+    def __init__(self, env, daily_events, machine_id, process_time, post_processing_queue, packaging_queue):
+        
+        super().__init__(env, daily_events, machine_id, process_time, in_queue=post_processing_queue, out_queue=packaging_queue, process_name="Printing")
+        #super().__init__ : 상속받은 클래스 내부에서 부모클래스의 생성자를 호출할 때 사용 문법 >> 부모클래스의 생성자를 호출하여 초기화 작업 수행
+
+class Proc_Packaging(BaseProcess):
+    def __init__(self, env, daily_events, machine_id, process_time, packaging_queue, product_list):
+        
+        super().__init__(env, daily_events, machine_id, process_time, in_queue=packaging_queue, out_queue=product_list, process_name="Printing")
+        #super().__init__ : 상속받은 클래스 내부에서 부모클래스의 생성자를 호출할 때 사용 문법 >> 부모클래스의 생성자를 호출하여 초기화 작업 수행
+
+
 
 
 # 환경 생성 함수 (create_env)
@@ -250,16 +271,23 @@ def create_env(daily_events):
 
     simpy_env = simpy.Environment()
 
- 
-    packaging = Proc_Packaging(simpy_env, daily_events)
-    post_processor = Proc_PostProcessing(simpy_env, daily_events, packaging)
-    dry_machine = Proc_Drying(simpy_env, daily_events, post_processor, drying_queue)
-    washing_machine = Proc_Washing(simpy_env, daily_events, dry_machine, washing_queue, drying_queue)
+    # Queue 생성
+    printer_queue = []
+    washing_queue = []
+    drying_queue = []
+    post_processing_queue = []
+    packaging_queue = []
+    product_list = []
+
+    packaging = Proc_Packaging(simpy_env, daily_events, machine_id, process_time, packaging_queue, product_list)
+    post_processor = Proc_PostProcessing(simpy_env, daily_events, post_processing_queue, packaging_queue)
+    dry_machine = Proc_Drying(simpy_env, daily_events, drying_queue, post_processing_queue)
+    washing_machine = Proc_Washing(simpy_env, daily_events, washing_queue, drying_queue)
     customer = Customer(simpy_env, daily_events, printer_queue)
     
     # Printer 생성 시 order_store와 washing_machine (즉, Washing.assign_order 호출) 전달
     printers = [
-        Proc_Printer(simpy_env, daily_events, pid, washing_machine, printer_queue, washing_queue)
+        Proc_Build(simpy_env, daily_events, pid, printer_queue, washing_queue, process_time=PRINTERS["PROCESS_TIME"],)
         for pid in PRINTERS.keys()
     ]
 
